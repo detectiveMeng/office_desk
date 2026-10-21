@@ -8,6 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use chrono::{Duration, Local, NaiveDate, NaiveDateTime};
 use gpui_kit::component::input::{InputEvent, InputState};
+use gpui_kit::component::{Icon, Sizable as _};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use office_desk_core::domain::date::start_of_week;
@@ -576,8 +577,9 @@ fn next_id(prefix: &str) -> String {
 /* ---------------- 根视图 ---------------- */
 
 impl Render for Workspace {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let palette = self.palette;
+        let titlebar = self.render_titlebar(window);
         let sidebar = self.render_sidebar(cx);
         let body = match self.page {
             Page::Today => self.render_today(cx).into_any_element(),
@@ -589,37 +591,131 @@ impl Render for Workspace {
 
         div()
             .flex()
+            .flex_col()
             .size_full()
             .bg(rgb(palette.bg))
             .text_color(rgb(palette.ink))
-            .child(sidebar)
+            .child(titlebar)
             .child(
                 div()
-                    .relative()
                     .flex()
-                    .flex_col()
+                    .flex_row()
                     .flex_1()
-                    .h_full()
+                    .w_full()
                     .overflow_hidden()
-                    .child(body)
-                    .when_some(notice, |el, text| {
-                        el.child(
-                            div()
-                                .absolute()
-                                .bottom(px(18.))
-                                .right(px(18.))
-                                .px(px(14.))
-                                .py(px(8.))
-                                .rounded(px(8.))
-                                .bg(rgb(palette.teal_ink))
-                                .text_color(rgb(palette.paper))
-                                .text_size(px(12.))
-                                .child(SharedString::from(text)),
-                        )
-                    }),
+                    .child(sidebar)
+                    .child(
+                        div()
+                            .relative()
+                            .flex()
+                            .flex_col()
+                            .flex_1()
+                            .h_full()
+                            .overflow_hidden()
+                            .child(body)
+                            .when_some(notice, |el, text| {
+                                el.child(
+                                    div()
+                                        .absolute()
+                                        .bottom(px(18.))
+                                        .right(px(18.))
+                                        .px(px(14.))
+                                        .py(px(8.))
+                                        .rounded(px(8.))
+                                        .bg(rgb(palette.teal_ink))
+                                        .text_color(rgb(palette.paper))
+                                        .text_size(px(12.))
+                                        .child(SharedString::from(text)),
+                                )
+                            }),
+                    ),
             )
     }
 }
+
+impl Workspace {
+    /// 自绘标题栏：左侧与侧栏同色延续，右侧与内容区同色，窗口控件贴右上角。
+    ///
+    /// Windows 下 `window_control_area` 让系统负责拖拽 / 双击最大化 / 最小化 / 关闭，
+    /// 因此这里不需要绑定点击事件。
+    fn render_titlebar(&self, window: &Window) -> Div {
+        let palette = self.palette;
+        let maximize = if window.is_maximized() {
+            RESTORE_SVG
+        } else {
+            MAXIMIZE_SVG
+        };
+
+        div()
+            .flex()
+            .flex_row()
+            .h(px(34.))
+            .w_full()
+            .flex_shrink_0()
+            .child(
+                div()
+                    .w(px(232.))
+                    .h_full()
+                    .flex_shrink_0()
+                    .bg(rgb(palette.paper))
+                    .border_r_1()
+                    .border_color(rgb(palette.line))
+                    .window_control_area(WindowControlArea::Drag),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_row()
+                    .flex_1()
+                    .h_full()
+                    .items_center()
+                    .justify_end()
+                    .bg(rgb(palette.bg))
+                    .child(
+                        div()
+                            .flex_1()
+                            .h_full()
+                            .window_control_area(WindowControlArea::Drag),
+                    )
+                    .child(self.titlebar_button(WindowControlArea::Min, MINIMIZE_SVG, false))
+                    .child(self.titlebar_button(WindowControlArea::Max, maximize, false))
+                    .child(self.titlebar_button(WindowControlArea::Close, CLOSE_SVG, true)),
+            )
+    }
+
+    fn titlebar_button(
+        &self,
+        area: WindowControlArea,
+        icon: &'static [u8],
+        is_close: bool,
+    ) -> AnyElement {
+        let palette = self.palette;
+        let (hover_bg, hover_fg) = if is_close {
+            (palette.red, 0xffffff)
+        } else {
+            (palette.hover, palette.ink)
+        };
+
+        div()
+            .flex()
+            .items_center()
+            .justify_center()
+            .w(px(46.))
+            .h_full()
+            .flex_shrink_0()
+            .text_color(rgb(palette.ink2))
+            .hover(move |style| style.bg(rgb(hover_bg)).text_color(rgb(hover_fg)))
+            .window_control_area(area)
+            .child(Icon::default().data(icon).small())
+            .into_any_element()
+    }
+}
+
+/// 窗口控件图标：内联 SVG（组件库的图标资源未随 crate 发布，路径式图标无法加载）。
+const MINIMIZE_SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect x="3" y="7.5" width="10" height="1" rx="0.5"/></svg>"#;
+const MAXIMIZE_SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M3.5 3.5h9v9h-9zm1.2 1.2v6.6h6.6V4.7z"/></svg>"#;
+const RESTORE_SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5 2.5h8.5V11h-1.2V3.7H5zm-2.5 2.5h8.5v8.5H2.5zm1.2 1.2v6.1h6.1V6.2z"/></svg>"#;
+const CLOSE_SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path d="M4.1 3.1 8 7l3.9-3.9 1 1L9 8l3.9 3.9-1 1L8 9l-3.9 3.9-1-1L7 8 3.1 4.1z"/></svg>"#;
 
 impl Workspace {
     fn render_sidebar(&mut self, cx: &mut Context<Self>) -> Div {

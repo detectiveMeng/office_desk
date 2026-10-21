@@ -41,6 +41,9 @@ fn main() -> anyhow::Result<()> {
         let options = WindowOptions {
             titlebar: Some(TitlebarOptions {
                 title: Some("办公工作台".into()),
+                // 去掉系统标题栏，改由应用自绘（见 Workspace::render_titlebar），
+                // 让窗口顶部与内容区成为同一块连续表面。
+                appears_transparent: true,
                 ..Default::default()
             }),
             window_bounds: Some(WindowBounds::Windowed(Bounds {
