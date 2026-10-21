@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>办公工作台 · 标题栏改版预览</title>
+<style>
+  :root {
+    --bg: #101614;
+    --paper: #17201d;
+    --line: #293632;
+    --line2: #212c29;
+    --ink: #e8f0ee;
+    --ink2: #a9bbb7;
+    --ink3: #7c8b87;
+    --teal: #2dd4bf;
+    --teal-soft: #13322e;
+    --teal-ink: #a7f3e8;
+    --red: #f87171;
+    --red-soft: #2a1a18;
+    --amber: #f0b866;
+    --amber-soft: #2a2318;
+    --blue: #8fb8e8;
+    --blue-soft: #1a2530;
+    --hover: #1e2a27;
+  }
+  .app[data-theme="light"] {
+    --bg: #f6f8f9;
+    --paper: #ffffff;
+    --line: #e2e9e7;
+    --line2: #eef2f1;
+    --ink: #152420;
+    --ink2: #4a5c58;
+    --ink3: #7c8b87;
+    --teal: #0f766e;
+    --teal-soft: #e8f4f2;
+    --teal-ink: #0b4f4a;
+    --red: #c0392b;
+    --red-soft: #fdf0ee;
+    --amber: #a86413;
+    --amber-soft: #fdf4e3;
+    --blue: #3a6ea5;
+    --blue-soft: #eef3f8;
+    --hover: #f0f4f3;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+    background: #0a0e0d radial-gradient(1200px 700px at 30% -10%, #14201d 0%, #0a0e0d 60%);
+    color: #e8f0ee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 32px 24px;
+    min-height: 100%;
+  }
+
+  .caption {
+    width: 1120px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    color: #7c8b87;
+    font-size: 12px;
+  }
+  .caption b { color: #e8f0ee; font-size: 14px; font-weight: 600; }
+  .caption .hint { color: #5d6c68; }
+
+  /* ---------- 窗口外壳 ---------- */
+  .window {
+    width: 1120px;
+    height: 600px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #22302c;
+    background: #101614;
+    box-shadow: 0 28px 80px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .4);
+  }
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 13px;
+    line-height: 1.45;
+    transition: background .18s, color .18s;
+  }
+
+  /* ---------- 标题栏（34px） ---------- */
+  .titlebar {
+    height: 34px;
+    flex: 0 0 34px;
+    display: flex;
+    align-items: stretch;
+    user-select: none;
+  }
+  .tb-brand {
+    width: 232px;
+    flex: 0 0 232px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding-left: 16px;
+    background: var(--paper);
+    border-right: 1px solid var(--line);
+    overflow: hidden;
+    white-space: nowrap;
+    cursor: default;
+  }
+  .tb-brand .name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .2px;
+    color: var(--ink);
+  }
+  .tb-brand .en {
+    font-size: 10px;
+    color: var(--ink3);
+    letter-spacing: .3px;
+  }
+  .tb-page {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 24px;
+    background: var(--bg);
+    white-space: nowrap;
+    cursor: default;
+  }
+  .tb-page .page-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .tb-drag { flex: 1 1 auto; align-self: stretch; }
+  .tb-controls { display: flex; align-items: stretch; }
+
+  .tb-btn {
+    width: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink2);
+    transition: background .12s, color .12s;
+  }
+  .tb-btn svg { width: 16px; height: 16px; fill: currentColor; }
+  .tb-btn:hover { background: var(--hover); color: var(--ink); }
+  .tb-btn.close:hover { background: var(--red); color: #fff; }
+
+  /* ---------- 主体 ---------- */
+  .main { flex: 1 1 auto; display: flex; min-height: 0; }
+
+  .sidebar {
+    width: 232px;
+    flex: 0 0 232px;
+    background: var(--paper);
+    border-right: 1px solid var(--line);
+    padding: 18px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .nav-item {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--ink2);
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .nav-item:hover { background: var(--hover); color: var(--ink); }
+  .nav-item.active {
+    background: var(--teal-soft);
+    color: var(--teal-ink);
+    font-weight: 600;
+  }
+  .sidebar .spacer { flex: 1 1 auto; }
+  .theme-toggle {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--ink2);
+    cursor: pointer;
+    text-align: center;
+    transition: background .12s, color .12s;
+  }
+  .theme-toggle:hover { background: var(--hover); color: var(--ink); }
+
+  .content {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 18px 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .content::-webkit-scrollbar { width: 8px; }
+  .content::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+
+  .page { display: none; flex-direction: column; gap: 14px; }
+  .page.active { display: flex; }
+
+  /* 页头：只保留元信息 + 主操作 */
+  .page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 26px;
+  }
+  .meta { font-size: 12px; color: var(--ink3); }
+  .meta b { color: var(--ink2); font-weight: 500; }
+
+  .btn {
+    border: none;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    background: transparent;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .btn.ghost { border: 1px solid var(--line); color: var(--ink2); }
+  .btn.ghost:hover { background: var(--hover); color: var(--ink); }
+  .btn.ghost.red { border-color: transparent; color: var(--red); }
+  .btn.ghost.red:hover { background: var(--red-soft); }
+  .btn.primary { background: var(--teal); color: #06201c; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.06); }
+
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink2);
+  }
+  .card-title .count { color: var(--teal); font-weight: 600; }
+  .card-title .sub { color: var(--ink3); font-size: 11px; }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    background: var(--bg);
+    border: 1px solid var(--line2);
+  }
+  .row .text { flex: 1 1 auto; min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .text.done { color: var(--ink3); text-decoration: line-through; }
+  .row.overdue { background: var(--red-soft); border-color: color-mix(in srgb, var(--red) 22%, transparent); }
+  .row.blocked { background: var(--amber-soft); border-color: color-mix(in srgb, var(--amber) 22%, transparent); }
+  .row.overdue .text { color: var(--red); }
+  .row.blocked .text { color: var(--amber); }
+  .row .tail { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+  .row .meta-line { font-size: 11px; color: var(--ink3); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    white-space: nowrap;
+    background: var(--line2);
+    color: var(--ink2);
+  }
+  .pill.teal { background: var(--teal-soft); color: var(--teal-ink); }
+  .pill.red { background: var(--red-soft); color: var(--red); }
+  .pill.amber { background: var(--amber-soft); color: var(--amber); }
+  .pill.blue { background: var(--blue-soft); color: var(--blue); }
+
+  .quick-add {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .quick-add .input {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink3);
+    font-size: 12px;
+  }
+  .quick-add .input .placeholder { flex: 1 1 auto; }
+
+  .group-empty { padding: 6px 2px; font-size: 12px; color: var(--ink3); }
+
+  .future-group { display: flex; flex-direction: column; gap: 8px; }
+  .future-day { font-size: 11px; color: var(--ink3); margin-top: 2px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .note-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 13px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 96px;
+  }
+  .note-card .note-head { display: flex; align-items: center; gap: 6px; }
+  .note-card .note-title { font-size: 12.5px; font-weight: 600; flex: 1 1 auto; }
+  .note-card .note-body { font-size: 11.5px; color: var(--ink3); line-height: 1.6; }
+  .note-card .note-foot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    font-size: 11px;
+    color: var(--ink2);
+    cursor: pointer;
+  }
+  .chip.active { background: var(--teal-soft); border-color: var(--teal); color: var(--teal-ink); }
+
+  .project-card { gap: 12px; }
+  .project-top { display: flex; align-items: center; gap: 8px; }
+  .project-name { font-size: 13px; font-weight: 600; flex: 1 1 auto; }
+  .project-why { font-size: 11.5px; color: var(--ink3); }
+  .progress { height: 6px; border-radius: 999px; background: var(--line2); overflow: hidden; }
+  .progress > i { display: block; height: 100%; background: var(--teal); border-radius: 999px; }
+  .project-foot { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--ink3); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .stat .label { font-size: 11px; color: var(--ink3); }
+  .stat .value { font-size: 24px; font-weight: 700; margin-top: 4px; letter-spacing: -.5px; }
+  .stat .value.teal { color: var(--teal); }
+  .stat .value.red { color: var(--red); }
+  .stat .foot { font-size: 11px; color: var(--ink3); margin-top: 2px; }
+
+  .bars { display: flex; align-items: flex-end; gap: 14px; height: 120px; padding: 8px 4px 0; }
+  .bar-col { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+  .bar-col .bar { width: 100%; flex: 0 0 auto; border-radius: 4px 4px 2px 2px; background: var(--teal-soft); border: 1px solid var(--teal); }
+  .bar-col .bar.zero { background: var(--line2); border-color: var(--line); }
+  .bar-col .bar-label { font-size: 10.5px; color: var(--ink3); }
+
+  .summary { font-size: 12px; color: var(--ink2); line-height: 1.8; }
+  .summary b { color: var(--ink); font-weight: 600; }
+
+  .note-banner {
+    width: 1120px;
+    font-size: 11.5px;
+    color: #5d6c68;
+    display: flex;
+    gap: 18px;
+  }
+  .note-banner span::before { content: "·"; margin-right: 6px; color: #3b4a46; }
+
+  @media (max-width: 1180px) {
+    .window, .caption, .note-banner { width: 100%; }
+    .window { height: 560px; }
+  }
+</style>
+</head>
+<body>
+  <div class="caption">
+    <div><b>办公工作台</b> · 标题栏改版预览</div>
+    <div class="hint">点击左侧导航切换页面；左下角可切换深浅色</div>
+  </div>
+
+  <div class="window">
+    <div class="app" id="app" data-theme="dark">
+      <!-- 标题栏 -->
+      <div class="titlebar">
+        <div class="tb-brand">
+          <span class="name">办公工作台</span>
+          <span class="en">Workbench</span>
+        </div>
+        <div class="tb-page">
+          <span class="page-name" id="tb-page-name">今日待办</span>
+        </div>
+        <div class="tb-drag"></div>
+        <div class="tb-controls">
+          <div class="tb-btn" title="最小化">
+            <svg viewBox="0 0 16 16"><rect x="3" y="7.5" width="10" height="1" rx="0.5"/></svg>
+          </div>
+          <div class="tb-btn" title="最大化">
+            <svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M3.5 3.5h9v9h-9zm1.2 1.2v6.6h6.6V4.7z"/></svg>
+          </div>
+          <div class="tb-btn close" title="关闭">
+            <svg viewBox="0 0 16 16"><path d="M4.1 3.1 8 7l3.9-3.9 1 1L9 8l3.9 3.9-1 1L8 9l-3.9 3.9-1-1L7 8 3.1 4.1z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="main">
+        <!-- 侧栏：品牌已上移到标题栏，导航直接顶到顶部 -->
+        <div class="sidebar">
+          <div class="nav-item active" data-page="today">今日待办</div>
+          <div class="nav-item" data-page="notes">灵感速记</div>
+          <div class="nav-item" data-page="projects">项目跟进</div>
+          <div class="nav-item" data-page="review">每周复盘</div>
+          <div class="spacer"></div>
+          <div class="theme-toggle" id="theme-toggle">切换浅色主题</div>
+        </div>
+
+        <div class="content" id="content">
+          <!-- 今日待办 -->
+          <div class="page active" data-page="today">
+            <div class="page-head">
+              <div class="meta">2026-10-21 周三 · <b>2 件待处理</b></div>
+              <button class="btn ghost red">全部顺延到明天</button>
+            </div>
+
+            <div class="card">
+              <div class="card-title">今天要处理的 <span class="count">3 项</span></div>
+              <div class="row overdue">
+                <div class="text">补充竞品价格带分析</div>
+                <div class="tail"><span class="pill red">逾期 3 天</span><span class="pill amber">顺延 1 次</span></div>
+              </div>
+              <div class="row overdue">
+                <div class="text">回复甲方合同修改意见</div>
+                <div class="tail"><span class="pill red">逾期 4 天</span><span class="pill amber">顺延 1 次</span></div>
+              </div>
+              <div class="row blocked">
+                <div class="text">Q3 增长方案：+H7 等法务确认活动条款</div>
+                <div class="tail"><span class="pill amber">法务卡点</span></div>
+              </div>
+            </div>
+
+            <div class="quick-add">
+              <div class="input"><span class="placeholder">记一件事，回车添加（默认 重要不紧急 · 今天）</span></div>
+              <button class="btn ghost">重要不紧急</button>
+              <button class="btn primary">＋ 加任务</button>
+            </div>
+
+            <div class="card">
+              <div class="card-title">逾期 <span class="count">2</span></div>
+              <div class="row overdue">
+                <div class="text">补充竞品价格带分析 <span class="meta-line">原定 10-18 · 逾期 3 天 · 顺延 2 次</span></div>
+                <div class="tail"><span class="pill teal">Q3 增长方案</span><span class="pill amber">紧急重要</span><span class="pill amber">顺延</span></div>
+              </div>
+              <div class="row overdue">
+                <div class="text">回复甲方合同修改意见 <span class="meta-line">原定 10-17 · 逾期 4 天 · 顺延 2 次</span></div>
+                <div class="tail"><span class="pill blue">重要不紧急</span><span class="pill amber">顺延</span></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">今天 <span class="count">0</span></div>
+              <div class="group-empty">今天没有新任务，先清掉逾期或安排一件。</div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">未来 <span class="count">4</span></div>
+              <div class="future-group">
+                <div class="future-day">周三 10-28</div>
+                <div class="row">
+                  <div class="text">埋点方案评审</div>
+                  <div class="tail"><span class="pill teal">首页改版</span><span class="pill blue">重要不紧急</span></div>
+                </div>
+                <div class="future-day">周四 10-29</div>
+                <div class="row">
+                  <div class="text">整理 Q3 复盘素材</div>
+                  <div class="tail"><span class="pill teal">Q3 增长方案</span><span class="pill blue">重要不紧急</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 灵感速记 -->
+          <div class="page" data-page="notes">
+            <div class="page-head">
+              <div class="meta"><b>6 条灵感</b> · 置顶 2</div>
+              <button class="btn primary">＋ 记一条</button>
+            </div>
+            <div class="chips">
+              <div class="chip active">全部</div>
+              <div class="chip">工作</div>
+              <div class="chip">灵感</div>
+              <div class="chip">阅读</div>
+            </div>
+            <div class="grid2">
+              <div class="note-card">
+                <div class="note-head"><span class="pill amber">置顶</span><div class="note-title">周报模板改成三段式</div></div>
+                <div class="note-body">进展 / 卡点 / 下周要什么支持。每段一句话，写给未来的自己看。</div>
+                <div class="note-foot"><span class="pill teal">工作</span><span class="pill">10-21</span></div>
+              </div>
+              <div class="note-card">
+                <div class="note-head"><span class="pill amber">置顶</span><div class="note-title">看板颜色收敛到三色</div></div>
+                <div class="note-body">红=卡住，黄=等外部，绿=正常。颜色一多就没人看。</div>
+                <div class="note-foot"><span class="pill teal">产品</span><span class="pill">10-20</span></div>
+              </div>
+              <div class="note-card">
+                <div class="note-head"><div class="note-title">批处理碎片任务</div></div>
+                <div class="note-body">读《深度工作》记：把小于 10 分钟的事攒到固定两个时段。</div>
+                <div class="note-foot"><span class="pill blue">阅读</span><span class="pill">10-19</span></div>
+              </div>
+              <div class="note-card">
+                <div class="note-head"><div class="note-title">首页改版先做减法</div></div>
+                <div class="note-body">首屏只留一个主行动，其它入口收进「更多」。</div>
+                <div class="note-foot"><span class="pill teal">工作</span><span class="pill">10-18</span></div>
+              </div>
+              <div class="note-card">
+                <div class="note-head"><div class="note-title">周五不排会</div></div>
+                <div class="note-body">留整块时间收尾和写复盘，已经被验证有效。</div>
+                <div class="note-foot"><span class="pill">习惯</span><span class="pill">10-17</span></div>
+              </div>
+              <div class="note-card">
+                <div class="note-head"><div class="note-title">灵感要能一键变任务</div></div>
+                <div class="note-body">转化时自动带标签和默认优先级，少一次填写。</div>
+                <div class="note-foot"><span class="pill teal">产品</span><span class="pill">10-15</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 项目跟进 -->
+          <div class="page" data-page="projects">
+            <div class="page-head">
+              <div class="meta"><b>3 个项目</b> · 2 个进行中 · 1 个卡住</div>
+              <button class="btn ghost">＋ 新建项目</button>
+            </div>
+            <div class="grid2">
+              <div class="card project-card">
+                <div class="project-top">
+                  <div class="project-name">Q3 增长方案</div>
+                  <span class="pill amber">卡住</span>
+                </div>
+                <div class="progress"><i style="width:60%"></i></div>
+                <div class="project-foot"><span>3 / 5 里程碑</span><span>卡点：法务确认活动条款</span></div>
+              </div>
+              <div class="card project-card">
+                <div class="project-top">
+                  <div class="project-name">首页改版</div>
+                  <span class="pill teal">进行中</span>
+                </div>
+                <div class="progress"><i style="width:75%"></i></div>
+                <div class="project-foot"><span>3 / 4 里程碑</span><span>下一步：埋点方案评审</span></div>
+              </div>
+              <div class="card project-card">
+                <div class="project-top">
+                  <div class="project-name">个人博客迁移</div>
+                  <span class="pill teal">进行中</span>
+                </div>
+                <div class="progress"><i style="width:67%"></i></div>
+                <div class="project-foot"><span>2 / 3 里程碑</span><span>下一步：域名解析切换</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">本周要推进的下一步</div>
+              <div class="row"><div class="text">Q3 增长方案：找法务过一遍活动条款</div><div class="tail"><span class="pill amber">卡点</span></div></div>
+              <div class="row"><div class="text">首页改版：安排埋点方案评审</div><div class="tail"><span class="pill teal">10-28</span></div></div>
+              <div class="row"><div class="text">个人博客迁移：切换域名解析</div><div class="tail"><span class="pill blue">本周</span></div></div>
+            </div>
+          </div>
+
+          <!-- 每周复盘 -->
+          <div class="page" data-page="review">
+            <div class="page-head">
+              <div class="meta">第 43 周 · <b>10-19 ~ 10-25</b></div>
+              <button class="btn ghost">‹ 上一周</button>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="label">本周完成</div><div class="value teal">11</div><div class="foot">到期 13 件</div></div>
+              <div class="stat"><div class="label">完成率</div><div class="value">84.6%</div><div class="foot">本周到期 ∪ 本周完成</div></div>
+              <div class="stat"><div class="label">顺延事件</div><div class="value">4</div><div class="foot">2 条逾期 × 各 2 次</div></div>
+              <div class="stat"><div class="label">卡住项目</div><div class="value red">1</div><div class="foot">Q3 增长方案</div></div>
+            </div>
+            <div class="card">
+              <div class="card-title">每日完成分布</div>
+              <div class="bars">
+                <div class="bar-col"><div class="bar zero" style="height:2px"></div><div class="bar-label">周一</div></div>
+                <div class="bar-col"><div class="bar" style="height:62px"></div><div class="bar-label">周二</div></div>
+                <div class="bar-col"><div class="bar" style="height:62px"></div><div class="bar-label">周三</div></div>
+                <div class="bar-col"><div class="bar" style="height:31px"></div><div class="bar-label">周四</div></div>
+                <div class="bar-col"><div class="bar" style="height:62px"></div><div class="bar-label">周五</div></div>
+                <div class="bar-col"><div class="bar" style="height:62px"></div><div class="bar-label">周六</div></div>
+                <div class="bar-col"><div class="bar" style="height:62px"></div><div class="bar-label">周日</div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">这一周的一句话</div>
+              <div class="summary">
+                本周完成 <b>11</b> 件，完成率 <b>84.6%</b>，节奏基本稳住了。主要问题在 <b>Q3 增长方案</b>：法务确认拖了两天，导致两条逾期各顺延 2 次。下周先把它推过卡点，再谈新增。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- <div class="note-banner">
+    <span>系统名归位左侧侧栏列</span>
+    <span>页面名位于内容列起点</span>
+    <span>页头只保留日期 / 计数 + 主操作</span>
+  </div> -->
+
+  <script>
+    const pages = {
+      today: "今日待办",
+      notes: "灵感速记",
+      projects: "项目跟进",
+      review: "每周复盘"
+    };
+
+    const navItems = document.querySelectorAll(".nav-item");
+    const pageEls = document.querySelectorAll(".page");
+
+    function activate(key) {
+      navItems.forEach((n) => n.classList.toggle("active", n.dataset.page === key));
+      pageEls.forEach((p) => p.classList.toggle("active", p.dataset.page === key));
+      document.getElementById("tb-page-name").textContent = pages[key];
+      document.getElementById("content").scrollTop = 0;
+    }
+
+    navItems.forEach((item) => {
+      item.addEventListener("click", () => activate(item.dataset.page));
+    });
+
+    function setTheme(theme) {
+      document.getElementById("app").dataset.theme = theme;
+      document.getElementById("theme-toggle").textContent =
+        theme === "dark" ? "切换浅色主题" : "切换深色主题";
+      document.querySelector(".window").style.background =
+        theme === "dark" ? "#101614" : "#f6f8f9";
+    }
+
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+      const dark = document.getElementById("app").dataset.theme === "dark";
+      setTheme(dark ? "light" : "dark");
+    });
+
+    // 便于预览：?theme=light&page=review
+    const params = new URLSearchParams(location.search);
+    if (params.get("theme") === "light") setTheme("light");
+    if (pages[params.get("page")]) activate(params.get("page"));
+  </script>
+</body>
+</html>
