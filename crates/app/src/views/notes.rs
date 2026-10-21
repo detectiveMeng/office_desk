@@ -41,6 +41,7 @@ impl Workspace {
         let mut chips: Vec<AnyElement> = Vec::new();
         chips.push(
             div()
+                .cursor_pointer()
                 .px(px(10.))
                 .py(px(4.))
                 .rounded(px(6.))
@@ -70,6 +71,7 @@ impl Workspace {
             let tag_owned = tag.clone();
             chips.push(
                 div()
+                    .cursor_pointer()
                     .px(px(10.))
                     .py(px(4.))
                     .rounded(px(6.))

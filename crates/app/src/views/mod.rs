@@ -59,6 +59,7 @@ pub(crate) fn priority_pill(priority: u8, p: &Palette) -> Div {
 /// 描边小按钮
 pub(crate) fn ghost_button(label: impl Into<SharedString>, fg: u32, p: &Palette) -> Div {
     div()
+        .cursor_pointer()
         .px(px(8.))
         .py(px(3.))
         .rounded(px(6.))
@@ -73,6 +74,7 @@ pub(crate) fn ghost_button(label: impl Into<SharedString>, fg: u32, p: &Palette)
 /// 实心主按钮
 pub(crate) fn primary_button(label: impl Into<SharedString>, p: &Palette) -> Div {
     div()
+        .cursor_pointer()
         .px(px(12.))
         .py(px(5.))
         .rounded(px(7.))

@@ -200,6 +200,7 @@ impl Workspace {
                 )
                 .child(
                     priority_pill(self.quick_priority, &p)
+                        .cursor_pointer()
                         .id("quick-priority")
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.quick_priority = (this.quick_priority + 1) % 4;
@@ -297,6 +298,7 @@ impl Workspace {
             .gap(px(4.))
             .child(
                 div()
+                    .cursor_pointer()
                     .flex()
                     .items_center()
                     .gap(px(6.))
@@ -385,6 +387,7 @@ impl Workspace {
             .when(!overdue && !done, |el| el.hover(|style| style.bg(rgb(p.hover))))
             .child(
                 div()
+                    .cursor_pointer()
                     .flex_none()
                     .w(px(16.))
                     .h(px(16.))
@@ -437,6 +440,7 @@ impl Workspace {
             })
             .child(
                 priority_pill(todo.priority, &p)
+                    .cursor_pointer()
                     .id(SharedString::from(format!("prio-{id_priority}")))
                     .on_click(
                         cx.listener(move |this, _, _, cx| this.cycle_priority(&id_priority, cx)),
@@ -462,6 +466,7 @@ impl Workspace {
             })
             .child(
                 div()
+                    .cursor_pointer()
                     .flex_none()
                     .px(px(6.))
                     .text_size(px(14.))

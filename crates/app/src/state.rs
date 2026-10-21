@@ -766,6 +766,7 @@ impl Workspace {
             let active = self.page == page;
             nav.push(
                 div()
+                    .cursor_pointer()
                     .px(px(12.))
                     .py(px(8.))
                     .rounded(px(8.))
@@ -803,6 +804,7 @@ impl Workspace {
             .child(div().flex_1())
             .child(
                 div()
+                    .cursor_pointer()
                     .px(px(12.))
                     .py(px(8.))
                     .rounded(px(8.))
