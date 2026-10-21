@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>办公工作台 · 产品设计说明</title>
+<style>
+:root{
+  --bg:#f6f8f9;
+  --paper:#ffffff;
+  --ink:#152420;
+  --ink-2:#4a5c58;
+  --ink-3:#7c8b87;
+  --line:#e2e9e7;
+  --line-2:#eef3f2;
+  --teal:#0f766e;
+  --teal-2:#0d9488;
+  --teal-ink:#0b4f4a;
+  --teal-soft:#e8f4f2;
+  --teal-soft-2:#f2f9f8;
+  --blue:#1e5f8a;
+  --red:#c0392b;
+  --red-soft:#fdf0ee;
+  --amber:#a86413;
+  --amber-soft:#fdf6e9;
+  --radius:14px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+a{color:var(--teal);text-decoration:none}
+
+/* ---------- 布局 ---------- */
+.shell{display:grid;grid-template-columns:252px minmax(0,1fr);min-height:100vh}
+
+/* ---------- 侧边导航 ---------- */
+.side{
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  background:var(--paper);border-right:1px solid var(--line);
+  padding:24px 0 28px;display:flex;flex-direction:column;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:0 22px 20px;border-bottom:1px solid var(--line-2);margin-bottom:14px}
+.brand-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(140deg,var(--teal),var(--blue));display:grid;place-items:center;flex:none}
+.brand-mark svg{width:17px;height:17px}
+.brand-name{font-size:13.5px;font-weight:700;letter-spacing:.2px;line-height:1.3}
+.brand-sub{font-size:10.5px;color:var(--ink-3);letter-spacing:.6px;text-transform:uppercase;margin-top:1px}
+.side-group{padding:0 12px;margin-bottom:6px}
+.side-group-t{font-size:10.5px;font-weight:700;color:var(--ink-3);letter-spacing:1.2px;text-transform:uppercase;padding:8px 10px 6px}
+.toc{list-style:none}
+.toc a{
+  display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;
+  font-size:13px;color:var(--ink-2);line-height:1.5;transition:background .16s,color .16s;
+}
+.toc a .n{font-family:var(--mono);font-size:11px;color:var(--ink-3);width:16px;flex:none;font-weight:600}
+.toc a:hover{background:var(--teal-soft-2);color:var(--teal-ink)}
+.toc a.active{background:var(--teal-soft);color:var(--teal-ink);font-weight:600}
+.toc a.active .n{color:var(--teal)}
+.side-foot{margin-top:auto;padding:18px 22px 0;border-top:1px solid var(--line-2);font-size:11px;color:var(--ink-3);line-height:1.7}
+.side-foot b{color:var(--ink-2);font-weight:600}
+
+/* ---------- 内容 ---------- */
+main{max-width:1080px;width:100%;padding:0 40px 96px}
+
+/* 页头 */
+.hero{
+  position:relative;margin:0 -40px 0;padding:46px 40px 38px;overflow:hidden;
+  background:linear-gradient(180deg,#f0f7f6 0%,#f7faf9 62%,#f6f8f9 100%);
+  border-bottom:1px solid var(--line);
+}
+.hero-art{position:absolute;right:-30px;top:-50px;width:520px;height:340px;opacity:.9;pointer-events:none}
+.hero-inner{position:relative;z-index:1;max-width:660px}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--teal);background:#fff;border:1px solid #d6e8e5;border-radius:999px;padding:4px 12px}
+.eyebrow .d{width:5px;height:5px;border-radius:50%;background:var(--teal-2)}
+.hero h1{font-size:30px;font-weight:800;letter-spacing:-.3px;line-height:1.32;margin:16px 0 10px;color:var(--ink)}
+.hero h1 em{font-style:normal;color:var(--teal)}
+.hero p{font-size:14px;color:var(--ink-2);max-width:600px}
+.hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.meta-chip{font-size:11.5px;color:var(--ink-2);background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:7px;padding:4px 10px}
+.meta-chip b{color:var(--ink);font-weight:600}
+
+/* 章节 */
+section{padding-top:44px;scroll-margin-top:20px}
+.sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;padding-bottom:12px;border-bottom:2px solid var(--ink);}
+.sec-num{font-family:var(--mono);font-size:12px;font-weight:700;color:#fff;background:var(--ink);border-radius:5px;padding:2px 7px;letter-spacing:.5px;flex:none;position:relative;top:-2px}
+.sec-head h2{font-size:20px;font-weight:800;letter-spacing:-.2px;flex:1}
+.sec-head .tag{font-size:11px;color:var(--ink-3);font-family:var(--mono);letter-spacing:.5px}
+h3{font-size:15px;font-weight:700;margin:30px 0 12px;display:flex;align-items:center;gap:9px}
+h3::before{content:"";width:3px;height:14px;border-radius:2px;background:var(--teal);flex:none}
+h4{font-size:13.5px;font-weight:700;color:var(--ink);margin:18px 0 8px}
+p{margin-bottom:10px;color:var(--ink-2)}
+p.lead{font-size:14.5px;color:var(--ink-2)}
+strong{color:var(--ink);font-weight:600}
+code{font-family:var(--mono);font-size:12px;background:#eef4f3;border:1px solid #e0ebe9;border-radius:4px;padding:1px 5px;color:var(--teal-ink)}
+ul,ol{margin:0 0 12px 0;padding-left:0;list-style:none}
+ul li,ol li{padding-left:16px;position:relative;margin-bottom:6px;color:var(--ink-2)}
+ul li::before{content:"";position:absolute;left:3px;top:10px;width:5px;height:5px;border-radius:50%;background:#a9c3bd}
+ol{counter-reset:ol}
+ol li{counter-increment:ol}
+ol li::before{content:counter(ol);position:absolute;left:0;top:2px;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--teal)}
+
+/* 卡片 */
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:14px}
+.card.flush{padding:0;overflow:hidden}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.card h4:first-child{margin-top:0}
+
+/* 提示块 */
+.note{border-left:3px solid var(--teal-2);background:var(--teal-soft-2);border-radius:0 10px 10px 0;padding:14px 18px;margin:14px 0;font-size:13.5px;color:var(--teal-ink)}
+.note b{color:var(--teal-ink)}
+.note.warn{border-left-color:#d9a441;background:var(--amber-soft);color:#6d4510}
+.note.warn b{color:#5e3a0c}
+.note .nt{display:block;font-size:10.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;opacity:.75;margin-bottom:3px}
+
+/* 表格 */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+thead th{
+  text-align:left;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--ink-3);background:#fafcfc;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+tbody td{padding:9px 14px;border-bottom:1px solid var(--line-2);color:var(--ink-2);vertical-align:top;line-height:1.65}
+tbody tr:last-child td{border-bottom:none}
+tbody td:first-child{color:var(--ink);font-weight:600}
+tbody tr:hover td{background:#fbfdfd}
+td .code{font-family:var(--mono);font-size:11.5px;color:var(--teal-ink)}
+.mini{font-size:11.5px;color:var(--ink-3)}
+
+/* 徽标 */
+.b{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px;line-height:1.6;white-space:nowrap}
+.b-red{background:var(--red-soft);color:var(--red)}
+.b-teal{background:var(--teal-soft);color:var(--teal)}
+.b-amber{background:var(--amber-soft);color:var(--amber)}
+.b-gray{background:#f0f3f3;color:var(--ink-3)}
+.b-blue{background:#eef3f8;color:var(--blue)}
+
+/* 优先级色点 */
+.pri{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap}
+.pri i{width:7px;height:7px;border-radius:2px;flex:none}
+.pri-p0 i{background:#c0392b}
+.pri-p1 i{background:#e08e3c}
+.pri-p2 i{background:#0d9488}
+.pri-p3 i{background:#9aadaa}
+
+/* 线框图 */
+.wire{background:#fbfdfd;border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+.wire-cap{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-bottom:10px;letter-spacing:.4px}
+.wf-app{display:grid;grid-template-columns:132px minmax(0,1fr);gap:0;background:#fff;border:1px solid #dde7e5;border-radius:9px;overflow:hidden;font-size:10.5px}
+.wf-side{background:#f6faf9;border-right:1px solid #e4edeb;padding:9px 8px;display:flex;flex-direction:column;gap:5px}
+.wf-logo{height:18px;border-radius:4px;background:#e3eeec;margin-bottom:5px;display:flex;align-items:center;padding-left:6px;font-size:9px;font-weight:700;color:var(--teal-ink)}
+.wf-nav{height:18px;border-radius:4px;background:#fff;border:1px solid #e8f0ee;display:flex;align-items:center;padding-left:7px;color:#6c807c}
+.wf-nav.on{background:var(--teal-soft);border-color:#cfe6e2;color:var(--teal-ink);font-weight:700}
+.wf-main{padding:9px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.wf-alert{border:1px dashed #e3b3ac;background:var(--red-soft);border-radius:5px;padding:5px 7px;color:#8f3226;display:flex;align-items:center;gap:6px;justify-content:space-between}
+.wf-alert .bar{flex:1;height:4px;border-radius:2px;background:#eecfc9}
+.wf-btn{background:var(--red);color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;flex:none}
+.wf-btn.t{background:var(--teal)}
+.wf-btn.g{background:#eaf0ef;color:#5e7370}
+.wf-row{display:flex;gap:6px;min-width:0}
+.wf-box{border:1px solid #e4edeb;border-radius:5px;padding:6px;background:#fff;min-width:0}
+.wf-box .hd{height:4px;border-radius:2px;background:#cfdedb;width:44%;margin-bottom:5px}
+.wf-line{height:3px;border-radius:2px;background:#e9f0ee;margin-bottom:4px}
+.wf-line.s{width:62%}
+.wf-chk{width:8px;height:8px;border:1.4px solid #a8c3bd;border-radius:2px;flex:none;margin-top:1px}
+.wf-task{display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:1px solid #f2f7f6;color:#5b6f6b}
+.wf-task:last-child{border:none}
+.wf-task .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-task od{font-size:8.5px}
+.wf-pill{font-size:8.5px;padding:0 4px;border-radius:3px;background:#eef4f3;color:#5b6f6b;flex:none}
+.wf-pill.r{background:var(--red-soft);color:var(--red)}
+
+/* 图例 / 流程 */
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 4px}
+.flow-node{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.flow-node.k{background:var(--teal-soft);border-color:#cfe6e2;color:var(--teal-ink)}
+.flow-node.r{background:var(--red-soft);border-color:#eecfc9;color:var(--red)}
+.flow-ar{color:#b6c9c4;font-family:var(--mono);font-size:13px}
+
+/* 规则列表 */
+.rules{counter-reset:r;margin:8px 0 0}
+.rules li{list-style:none;padding-left:30px;position:relative;margin-bottom:9px;font-size:13.5px}
+.rules li::before{
+  counter-increment:r;content:"R" counter(r);
+  position:absolute;left:0;top:2px;font-family:var(--mono);font-size:10px;font-weight:700;
+  color:var(--teal);background:var(--teal-soft);border-radius:4px;padding:1px 4px;line-height:1.6;
+}
+
+/* KPI 规格 */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.kpi{border:1px solid var(--line);border-radius:11px;padding:13px 14px;background:#fff;position:relative}
+.kpi .t{font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.3px}
+.kpi .v{font-size:23px;font-weight:800;line-height:1.25;margin:3px 0 1px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.kpi .s{font-size:11px;color:var(--ink-3)}
+.kpi .f{font-family:var(--mono);font-size:10.5px;color:#8fa5a0;margin-top:6px;border-top:1px dashed var(--line);padding-top:5px;line-height:1.5}
+
+/* 色板 */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin:12px 0}
+.sw{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.sw .c{height:44px}
+.sw .m{padding:7px 10px}
+.sw .m b{display:block;font-size:12px;font-weight:700}
+.sw .m span{font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+
+/* 尺寸标注 */
+.spec{font-family:var(--mono);font-size:11.5px;color:var(--teal-ink);background:var(--teal-soft-2);border:1px dashed #cfe6e2;border-radius:6px;padding:2px 7px;display:inline-block}
+
+/* 目录跳转工具 */
+.totop{position:fixed;right:22px;bottom:22px;width:40px;height:40px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:0 4px 16px -4px rgba(20,40,36,.16);display:grid;place-items:center;color:var(--ink-2);z-index:20}
+.totop:hover{color:var(--teal);border-color:#cfe6e2}
+
+/* 页脚 */
+.foot{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+
+/* 响应式 */
+@media(max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);padding:16px 0 10px}
+  .brand{padding-bottom:12px;margin-bottom:8px}
+  .side-group{padding:0 10px}
+  .toc{display:flex;flex-wrap:wrap;gap:4px}
+  .toc a{font-size:12px;padding:5px 9px;background:#f4f8f7}
+  .side-foot{display:none}
+  main{padding:0 18px 70px}
+  .hero{margin:0 -18px;padding:32px 18px 26px}
+  .hero-art{width:360px;height:250px;right:-90px;top:-30px;opacity:.55}
+  .hero h1{font-size:23px}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .wf-app{grid-template-columns:92px minmax(0,1fr);font-size:9.5px}
+  .totop{display:none}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ================= 侧边导航 ================= -->
+<aside class="side">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 4v5"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-name">办公工作台</div>
+      <div class="brand-sub">Product Spec</div>
+    </div>
+  </div>
+
+  <div class="side-group">
+    <div class="side-group-t">设计定位</div>
+    <ul class="toc">
+      <li><a href="#s1"><span class="n">01</span>概述与设计原则</a></li>
+      <li><a href="#s2"><span class="n">02</span>信息架构与框架</a></li>
+    </ul>
+  </div>
+  <div class="side-group">
+    <div class="side-group-t">四大模块</div>
+    <ul class="toc">
+      <li><a href="#s3"><span class="n">03</span>今日待办</a></li>
+      <li><a href="#s4"><span class="n">04</span>灵感速记</a></li>
+      <li><a href="#s5"><span class="n">05</span>项目跟进</a></li>
+      <li><a href="#s6"><span class="n">06</span>每周复盘</a></li>
+      <li><a href="#s7"><span class="n">07</span>今天要处理的</a></li>
+    </ul>
+  </div>
+  <div class="side-group">
+    <div class="side-group-t">规则与规范</div>
+    <ul class="toc">
+      <li><a href="#s8"><span class="n">08</span>顺延与联动规则</a></li>
+      <li><a href="#s9"><span class="n">09</span>数据模型</a></li>
+      <li><a href="#s10"><span class="n">10</span>视觉与交互规范</a></li>
+      <li><a href="#s11"><span class="n">11</span>边界与后续迭代</a></li>
+    </ul>
+  </div>
+
+  <div class="side-foot">
+    <b>v0.1 设计评审稿</b><br>
+    单文件 HTML · 左导航右内容<br>
+    4 模块 + 1 置顶区
+  </div>
+</aside>
+
+<!-- ================= 正文 ================= -->
+<main>
+
+<!-- 页头 -->
+<header class="hero">
+  <svg class="hero-art" viewBox="0 0 520 340" fill="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#0d9488" stop-opacity=".14"/>
+        <stop offset="1" stop-color="#1e5f8a" stop-opacity=".04"/>
+      </linearGradient>
+      <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#0f766e" stop-opacity=".22"/>
+        <stop offset="1" stop-color="#0f766e" stop-opacity=".06"/>
+      </linearGradient>
+      <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#1e5f8a" stop-opacity=".16"/>
+        <stop offset="1" stop-color="#1e5f8a" stop-opacity=".03"/>
+      </linearGradient>
+    </defs>
+    <g vector-effect="non-scaling-stroke">
+      <!-- 网格底纹 -->
+      <path d="M0 300 L260 170 L520 300" stroke="#cfe0dc" stroke-width="1" opacity=".5"/>
+      <path d="M0 250 L260 120 L520 250" stroke="#cfe0dc" stroke-width="1" opacity=".32"/>
+      <!-- 中央等距面板 -->
+      <path d="M260 92 L392 158 L260 224 L128 158 Z" fill="url(#g1)" stroke="#b9d4ce" stroke-width="1.1"/>
+      <path d="M128 158 L260 224 L260 292 L128 226 Z" fill="url(#g2)" stroke="#b9d4ce" stroke-width="1"/>
+      <path d="M392 158 L260 224 L260 292 L392 226 Z" fill="url(#g3)" stroke="#b9d4ce" stroke-width="1"/>
+      <!-- 面板内条目（抽象任务条） -->
+      <g stroke="#8fb5ae" stroke-width="1.6" stroke-linecap="round" opacity=".85">
+        <path d="M196 152 L238 131"/><path d="M196 168 L262 135"/>
+        <path d="M196 184 L240 162"/>
+      </g>
+      <g fill="#0d9488" opacity=".55">
+        <rect x="176" y="148" width="9" height="9" rx="2" transform="skewX(-26)"/>
+      </g>
+      <circle cx="330" cy="150" r="15" fill="none" stroke="#7fada5" stroke-width="2.4" stroke-dasharray="58 36" transform="rotate(-90 330 150)"/>
+      <circle cx="330" cy="150" r="3.2" fill="#0f766e" opacity=".5"/>
+      <!-- 立柱 -->
+      <g opacity=".55" stroke="#a9c8c2" stroke-width="1">
+        <path d="M412 118 L452 138 L452 196 L412 176 Z" fill="#e2efec"/>
+        <path d="M452 138 L492 118 L492 176 L452 196 Z" fill="#eef6f4"/>
+        <path d="M412 118 L452 98 L492 118 L452 138 Z" fill="#f6fbfa"/>
+      </g>
+      <!-- 悬浮小卡 -->
+      <g opacity=".8">
+        <path d="M86 210 L142 237 L86 264 L30 237 Z" fill="#fff" stroke="#c9dcd7"/>
+        <path d="M46 237 L74 251" stroke="#a8c3bd" stroke-width="2" stroke-linecap="round"/>
+      </g>
+      <!-- 点阵 -->
+      <g fill="#96b8b1" opacity=".4">
+        <circle cx="470" cy="252" r="2"/><circle cx="486" cy="252" r="2"/><circle cx="502" cy="252" r="2"/>
+        <circle cx="470" cy="268" r="2"/><circle cx="486" cy="268" r="2"/><circle cx="502" cy="268" r="2"/>
+        <circle cx="70" cy="120" r="2"/><circle cx="86" cy="120" r="2"/><circle cx="102" cy="120" r="2"/>
+      </g>
+    </g>
+  </svg>
+
+  <div class="hero-inner">
+    <span class="eyebrow"><span class="d"></span>Product Design · 评审稿</span>
+    <h1>办公工作台<br><em>一个「今天该干什么」的答案</em></h1>
+    <p class="lead">左侧导航、右侧内容的单页工作台。以「今天要处理的」为入口，把散落在待办、项目、灵感里的东西收敛成一条每天可以照着走的行动线。</p>
+    <div class="hero-meta">
+      <span class="meta-chip"><b>4</b> 大模块</span>
+      <span class="meta-chip">置顶 <b>今天要处理的</b></span>
+      <span class="meta-chip">蓝绿 · 商务克制</span>
+      <span class="meta-chip">图表 <b>纯 SVG/CSS</b></span>
+      <span class="meta-chip">交付形态：单文件 HTML</span>
+    </div>
+  </div>
+</header>
+
+<!-- =========== 01 =========== -->
+<section id="s1">
+  <div class="sec-head"><span class="sec-num">01</span><h2>概述与设计原则</h2><span class="tag">OVERVIEW</span></div>
+
+  <h3>要解决的问题</h3>
+  <p>个人办公的痛点不在「记不住」，而在<strong>「该干的没干，干了的说不清」</strong>。任务列表人人都有，但真正卡住人的是三件事：昨天没做完的事悄悄消失了；多个项目并行时不知道每件事卡在哪；周末想复盘却想不起来这周精力花在哪。</p>
+  <p>所以这个工作台不追求功能多，而是把四个模块串成一条闭环：<strong>待办记录行动 → 挂到项目获得上下文 → 灵感承接临时想法 → 周复盘回收成果</strong>。</p>
+
+  <h3>设计原则</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>① 答案优先于数据</h4>
+      <p class="mini" style="margin:0">顶部第一屏不是统计报表，而是「你现在该处理什么」。数据可视化放到模块内部，作为判断的辅助，不抢先。</p>
+    </div>
+    <div class="card">
+      <h4>② 任务不允许消失</h4>
+      <p class="mini" style="margin:0">任何未完成的任务都必须有一个明确归属：今天、某天、或逾期。顺延不是隐藏，而是一次带记录的位移。</p>
+    </div>
+    <div class="card">
+      <h4>③ 关联优于嵌套</h4>
+      <p class="mini" style="margin:0">任务只挂一个项目（单选），项目显示关联任务的完成率。不做多层级子任务，避免个人用户陷入维护结构的负担。</p>
+    </div>
+    <div class="card">
+      <h4>④ 一个页面一个动作</h4>
+      <p class="mini" style="margin:0">每个模块只有一个主操作（加任务 / 记灵感 / 加项目 / 写复盘），其余操作收进条目内联按钮，不铺满工具栏。</p>
+    </div>
+  </div>
+
+  <h3>本次交付的核心决策</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:118px">决策点</th><th>结论</th><th style="width:38%">理由</th></tr></thead>
+      <tbody>
+        <tr><td>导航结构</td><td>PC 左侧固定导航（252px）+ 右侧内容区；移动端导航降为底部 Tab</td><td>桌面办公场景以「快速切换模块」为主，侧栏常驻比顶部 Tab 更省手</td></tr>
+        <tr><td>置顶区归属</td><td>「今天要处理的」属于<strong>全局区</strong>，不单独做导航项，每个模块页顶部都可见（可折叠）</td><td>它不是第五个模块，而是跨模块的警报层；做成导航项会被当成「又一个要维护的页面」</td></tr>
+        <tr><td>优先级模型</td><td>四档：紧急重要 / 重要不紧急 / 紧急不重要 / 不急不重要</td><td>沿用用户熟悉的四象限说法，比 P0–P3 更自解释；内部仍映射 P0–P3 便于排序</td></tr>
+        <tr><td>顺延机制</td><td>只顺延<strong>日期</strong>，不复制任务；记录 <code>postponeCount</code> 与顺延流水</td><td>复制会产生重复条目；顺延次数是「这件事一直没动」的强信号，值得显性化</td></tr>
+        <tr><td>项目-待办关系</td><td>一对多，任务侧单选项目；项目侧只读汇总进度</td><td>个人用户并行项目通常 3–8 个，无需多对多标签化</td></tr>
+        <tr><td>数据存储</td><td>单文件 HTML + 浏览器本地存储（localStorage），附 JSON 导出/导入</td><td>隐私优先、零运维、离线可用；如后续要跨设备再接资料来源库</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- =========== 02 =========== -->
+<section id="s2">
+  <div class="sec-head"><span class="sec-num">02</span><h2>信息架构与页面框架</h2><span class="tag">IA &amp; LAYOUT</span></div>
+
+  <h3>信息架构</h3>
+  <div class="wire">
+    <div class="wire-cap">SITEMAP · 页面与区块层级</div>
+    <div class="flow" style="gap:6px">
+      <span class="flow-node k">工作台</span><span class="flow-ar">▸</span>
+      <span class="flow-node">今天要处理的（全局置顶）</span>
+    </div>
+    <div class="flow" style="gap:6px;margin-top:8px">
+      <span class="flow-ar">▸</span>
+      <span class="flow-node">今日待办</span>
+      <span class="flow-node">灵感速记</span>
+      <span class="flow-node">项目跟进</span>
+      <span class="flow-node">每周复盘</span>
+    </div>
+    <div class="grid-3" style="margin-top:10px;gap:8px">
+      <div class="card" style="margin:0;padding:11px 13px">
+        <div class="mini" style="font-weight:700;color:var(--ink)">今日待办</div>
+        <div class="mini">今日清单 · 未来分组 · 已完成折叠</div>
+      </div>
+      <div class="card" style="margin:0;padding:11px 13px">
+        <div class="mini" style="font-weight:700;color:var(--ink)">灵感速记</div>
+        <div class="mini">快速输入 · 标签筛选 · 卡片流</div>
+      </div>
+      <div class="card" style="margin:0;padding:11px 13px">
+        <div class="mini" style="font-weight:700;color:var(--ink)">项目跟进</div>
+        <div class="mini">项目卡 · 阶段 · 卡点 · 关联任务</div>
+      </div>
+    </div>
+    <div class="grid-3" style="margin-top:8px;gap:8px">
+      <div class="card" style="margin:0;padding:11px 13px">
+        <div class="mini" style="font-weight:700;color:var(--ink)">每周复盘</div>
+        <div class="mini">完成量 · 优先级分布 · 精力分布 · 卡点汇总</div>
+      </div>
+      <div class="card" style="margin:0;padding:11px 13px">
+        <div class="mini" style="font-weight:700;color:var(--ink)">顶部警报层</div>
+        <div class="mini">逾期任务 · 卡住项目 · 一键顺延</div>
+      </div>
+      <div class="card" style="margin:0;padding:11px 13px">
+        <div class="mini" style="font-weight:700;color:var(--ink)">全局工具</div>
+        <div class="mini">导出备份 · 导入 · 清空 · 同步状态</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>PC 布局骨架</h3>
+  <div class="wire">
+    <div class="wire-cap">DESKTOP · ≥1200px · 左导航 252px / 右内容自适应（最大 1080px 居中）</div>
+    <div class="wf-app" style="grid-template-columns:120px minmax(0,1fr)">
+      <div class="wf-side">
+        <div class="wf-logo">办公台</div>
+        <div class="wf-nav on">今天待办</div>
+        <div class="wf-nav">灵感速记</div>
+        <div class="wf-nav">项目跟进</div>
+        <div class="wf-nav">每周复盘</div>
+        <div style="flex:1"></div>
+        <div class="wf-line" style="width:80%"></div>
+        <div class="wf-line s"></div>
+        <div class="wf-line" style="width:55%"></div>
+      </div>
+      <div class="wf-main">
+        <div class="wf-alert">
+          <span style="font-weight:700">今天要处理的</span>
+          <span class="bar"></span>
+          <span class="wf-btn">全部顺延</span>
+        </div>
+        <div class="wf-row" style="gap:5px">
+          <div class="wf-box" style="flex:1">
+            <div class="hd"></div>
+            <div class="wf-task"><span class="wf-chk"></span><span class="tx">逾期任务 A</span><span class="wf-pill r">逾期3天</span></div>
+            <div class="wf-task"><span class="wf-chk"></span><span class="tx">待办 B</span><span class="wf-pill">今天</span></div>
+            <div class="wf-task"><span class="wf-chk"></span><span class="tx">待办 C</span><span class="wf-pill">今天</span></div>
+          </div>
+          <div class="wf-box" style="width:38%">
+            <div class="hd"></div>
+            <div class="wf-line"></div><div class="wf-line s"></div><div class="wf-line"></div>
+          </div>
+        </div>
+        <div class="wf-box">
+          <div class="hd" style="width:30%"></div>
+          <div class="wf-task"><span class="wf-chk"></span><span class="tx">未来分组 · 明天</span><span class="wf-pill">2 件</span></div>
+          <div class="wf-task"><span class="wf-chk"></span><span class="tx">未来分组 · 周三</span><span class="wf-pill">1 件</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="mini">右侧内容区采用「标题行 → 置顶警报 → 主区（两栏/单栏按模块决定）→ 折叠区（已完成/历史）」的固定节奏，四个模块共用同一套栅格，切换时视觉不跳。</p>
+
+  <h3>响应式断点</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>断点</th><th>导航</th><th>内容区</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td>≥1200px</td><td>左侧固定侧栏 252px</td><td>单栏，内容最大 1080px</td><td>项目卡/复盘图表可用两栏并置</td></tr>
+        <tr><td>768–1199px</td><td>左侧收窄为 72px 图标栏（hover 展开文字）</td><td>单栏，内边距 24px</td><td>图表横向滚动，不压缩变形</td></tr>
+        <tr><td>&lt;768px</td><td>底部 Tab（4 项 + 图标）</td><td>单列堆叠，内边距 16px</td><td>按钮 ≥44px、输入字号 ≥16px、适配底部安全区</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">
+    <span class="nt">移动端取舍</span>
+    手机上「今天要处理的」默认只展开前 3 条，超出折叠为「还有 N 项」；项目卡在手机上只显示项目名、状态、下一步、关联进度四行，卡点与其他字段点开后进入详情抽屉。
+  </div>
+</section>
+
+<!-- =========== 03 =========== -->
+<section id="s3">
+  <div class="sec-head"><span class="sec-num">03</span><h2>模块一 · 今日待办</h2><span class="tag">TODOS</span></div>
+  <p class="lead">工作台的主干。核心承诺只有一句：<strong>写下来的事，第二天不会消失。</strong></p>
+
+  <h3>页面结构（自上而下）</h3>
+  <div class="wire">
+    <div class="wire-cap">TODOS VIEW · 区块顺序</div>
+    <div class="wf-main" style="background:#fff;border:1px solid #dde7e5;border-radius:8px;padding:12px">
+      <div class="wf-row" style="align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-weight:700;font-size:11px">今日待办 <span class="mini">10月18日 周日 · 4 件待办</span></div>
+        <div style="display:flex;gap:4px"><span class="wf-btn g">筛选</span><span class="wf-btn t">＋ 加任务</span></div>
+      </div>
+      <div class="wf-box" style="border-color:#e3b3ac;background:#fdf8f7">
+        <div class="hd" style="background:#e3b3ac;width:34%"></div>
+        <div class="wf-task"><span class="wf-chk" style="border-color:var(--red)"></span><span class="tx" style="color:var(--red);font-weight:700">逾期任务（红）</span><span class="wf-pill r">逾期 3 天 · 顺延 2 次</span><span class="wf-btn">顺延</span></div>
+      </div>
+      <div class="wf-row" style="margin-top:6px">
+        <div class="wf-box" style="flex:1">
+          <div class="hd" style="width:40%"></div>
+          <div class="wf-task"><span class="wf-chk"></span><span class="tx">今天要做的 A</span><span class="wf-pill">紧急重要</span></div>
+          <div class="wf-task"><span class="wf-chk"></span><span class="tx">今天要做的 B</span><span class="wf-pill">重要不紧急</span></div>
+        </div>
+        <div class="wf-box" style="width:40%">
+          <div class="hd" style="width:52%"></div>
+          <div class="wf-task"><span class="wf-chk"></span><span class="tx">昨天顺延来的</span><span class="wf-pill r">顺延 1 次</span></div>
+        </div>
+      </div>
+      <div class="wf-box" style="margin-top:6px">
+        <div class="hd" style="width:32%"></div>
+        <div class="wf-task"><span style="font-size:9px;color:#8fa5a0;width:46px">明天 · 10/19</span><span class="tx">未来任务 1</span></div>
+        <div class="wf-task"><span style="font-size:9px;color:#8fa5a0;width:46px">周三 · 10/21</span><span class="tx">未来任务 2</span></div>
+        <div class="wf-task"><span style="font-size:9px;color:#8fa5a0;width:46px">无日期</span><span class="tx">待安排</span></div>
+      </div>
+      <div class="wf-task" style="margin-top:6px;color:#9fb3ae"><span class="wf-chk"></span><span class="tx">已完成（折叠 6 件）</span><span class="wf-pill">展开</span></div>
+    </div>
+  </div>
+
+  <h3>字段定义</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:96px">字段</th><th style="width:110px">类型</th><th>规则</th></tr></thead>
+      <tbody>
+        <tr><td>标题</td><td>文本</td><td>必填，上限 80 字，超出省略号截断，hover 显示全文</td></tr>
+        <tr><td>优先级</td><td>四选一</td><td><span class="pri pri-p0"><i></i>紧急重要</span> / <span class="pri pri-p1"><i></i>重要不紧急</span> / <span class="pri pri-p2"><i></i>紧急不重要</span> / <span class="pri pri-p3"><i></i>不急不重要</span>；默认「重要不紧急」</td></tr>
+        <tr><td>截止日期</td><td>日期</td><td>可选。留空即「待安排」，归入未来区的「无日期」组，不参与逾期判断</td></tr>
+        <tr><td>所属项目</td><td>单选</td><td>可选，下拉选择已建项目；选中后任务出现在该项目卡的关联任务下</td></tr>
+        <tr><td>备注</td><td>多行文本</td><td>可选，仅详情里展示，列表不显示</td></tr>
+        <tr><td>状态</td><td>枚举</td><td><code>todo</code> / <code>done</code>；打勾即 done，记录 <code>doneAt</code> 时间戳</td></tr>
+        <tr><td>顺延次数</td><td>整数</td><td>系统维护，用户不可编辑；首次创建为 0</td></tr>
+        <tr><td>顺延流水</td><td>数组</td><td>每次顺延追加 <code>{from, to, at}</code>，详情里以时间轴展示</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>三种任务状态与视觉</h3>
+  <div class="grid-3">
+    <div class="card" style="border-color:#eecfc9;background:var(--red-soft)">
+      <h4 style="color:var(--red)">逾期 · 标红</h4>
+      <p class="mini" style="margin:0">截止日期 &lt; 今天且未完成。整行浅红底 + 左侧 3px 红条，日期文案显示「逾期 N 天」，行尾固定出现「顺延」按钮。<b>不顺延也不消失</b>，一直留在今日清单顶部。</p>
+    </div>
+    <div class="card">
+      <h4>今天 · 正常</h4>
+      <p class="mini" style="margin:0">截止日期 = 今天。白底、灰勾选框，行尾显示优先级标签。若该任务是从过去顺延来的，额外挂一枚「顺延 N 次」铅笔色小徽标。</p>
+    </div>
+    <div class="card">
+      <h4>未来 · 灰</h4>
+      <p class="mini" style="margin:0">截止日期 &gt; 今天。按日期分组成折叠块，组头显示「明天 10/19 · 2 件」，文字颜色降一档，弱化存在感但随时可查。</p>
+    </div>
+  </div>
+
+  <h3>交互细节</h3>
+  <ul>
+    <li><strong>快速添加：</strong>顶部输入框常驻，输入标题回车即建任务（默认「重要不紧急 + 今天 + 无项目」），随后可在行内补优先级/日期/项目，不需要先弹表单。</li>
+    <li><strong>完整表单：</strong>点「＋ 加任务」打开右侧抽屉（桌面）/ 底部弹层（手机），包含全部字段；从项目卡点「加一条」时项目字段预填且锁定。</li>
+    <li><strong>打勾：</strong>勾选框 44×44px 热区，点击后任务行 300ms 内淡出并移入「已完成」折叠区，顶部出现「已完成 · 撤销」提示条，5 秒内可撤销。</li>
+    <li><strong>改期：</strong>行内点日期胶囊直接弹出迷你日历，选完即改；若改到未来，自动移入对应日期分组。</li>
+    <li><strong>排序：</strong>今日清单固定按「逾期 → 优先级 P0→P3 → 截止日期 → 创建时间」排，不提供手动拖拽，避免排序成为新的维护负担。</li>
+    <li><strong>已完成：</strong>默认折叠，显示「本周已完成 N 件」，展开后按完成时间倒序，可按「今天/7 天内/更早」筛选。</li>
+  </ul>
+</section>
+
+<!-- =========== 04 =========== -->
+<section id="s4">
+  <div class="sec-head"><span class="sec-num">04</span><h2>模块二 · 灵感速记</h2><span class="tag">NOTES</span></div>
+  <p class="lead">承接「还不配成为任务」的想法。设计目标是<strong>3 秒内记完、永远找得回来</strong>。</p>
+
+  <h3>页面结构</h3>
+  <div class="wire">
+    <div class="wire-cap">NOTES VIEW · 输入区 + 标签行 + 卡片瀑布</div>
+    <div class="wf-main" style="background:#fff;border:1px solid #dde7e5;border-radius:8px;padding:12px">
+      <div class="wf-box" style="border-color:#cfe6e2;background:#f7fbfa">
+        <div class="wf-line" style="width:70%;background:#d9e9e6"></div>
+        <div class="wf-row" style="margin-top:6px;justify-content:space-between;align-items:center">
+          <div style="display:flex;gap:4px"><span class="wf-pill">#想法</span><span class="wf-pill">#待验证</span><span class="wf-pill">＋标签</span></div>
+          <span class="wf-btn t">存入</span>
+        </div>
+      </div>
+      <div class="wf-row" style="margin-top:8px;gap:4px;flex-wrap:wrap">
+        <span class="wf-pill" style="background:var(--teal-soft);color:var(--teal-ink);font-weight:700">全部 8</span>
+        <span class="wf-pill">#想法 3</span><span class="wf-pill">#待验证 2</span><span class="wf-pill">#素材 2</span><span class="wf-pill">#杂项 1</span>
+      </div>
+      <div class="wf-row" style="margin-top:8px">
+        <div class="wf-box" style="flex:1"><div class="wf-line"></div><div class="wf-line"></div><div class="wf-line s"></div><div style="display:flex;gap:3px;margin-top:4px"><span class="wf-pill">#想法</span></div></div>
+        <div class="wf-box" style="flex:1"><div class="wf-line"></div><div class="wf-line s"></div><div style="display:flex;gap:3px;margin-top:4px"><span class="wf-pill">#素材</span></div></div>
+        <div class="wf-box" style="flex:1"><div class="wf-line"></div><div class="wf-line"></div><div class="wf-line s"></div><div style="display:flex;gap:3px;margin-top:4px"><span class="wf-pill">#待验证</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>字段定义</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:96px">字段</th><th style="width:110px">类型</th><th>规则</th></tr></thead>
+      <tbody>
+        <tr><td>正文</td><td>多行文本</td><td>必填，上限 1000 字；输入框随内容自动增高至 8 行</td></tr>
+        <tr><td>标签</td><td>多选 + 可新建</td><td>0–3 个。输入 <code>#</code> 触发已有标签联想，回车新建；标签全局共享同一套词表</td></tr>
+        <tr><td>置顶</td><td>布尔</td><td>单条可置顶，最多同时 3 条；置顶卡带一枚细微的角标</td></tr>
+        <tr><td>转任务</td><td>动作</td><td>一键把灵感转为待办：正文变标题，标签带入备注，随后打开待办表单补日期与项目</td></tr>
+        <tr><td>时间</td><td>系统</td><td>创建时间 + 最近编辑时间，卡片底部显示相对时间（如「3 天前」）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>交互细节</h3>
+  <ul>
+    <li><strong>零摩擦录入：</strong>进入模块时输入框自动聚焦，<code>Ctrl/⌘ + Enter</code> 保存，保存后清空并保留焦点，可连续记多条。</li>
+    <li><strong>标签筛选：</strong>标签行为单选筛选，顶部「全部 N」是默认态；标签数量为 0 的标签自动隐藏，超过 8 个标签时该行可左右滚动。</li>
+    <li><strong>卡片布局：</strong>桌面 3 列等高瀑布（按创建时间倒序，置顶优先）；手机上单列，正文超过 4 行折叠为「展开全文」。</li>
+    <li><strong>编辑与删除：</strong>卡片点击即进入行内编辑（不弹窗）；删除需二次点击确认（按钮变为「确认删除」），不做全局弹窗。</li>
+    <li><strong>空状态：</strong>无灵感时展示一行提示「想到什么就先记下来，不用管它有没有用」，配 2 条示例灵感，避免空白。</li>
+  </ul>
+</section>
+
+<!-- =========== 05 =========== -->
+<section id="s5">
+  <div class="sec-head"><span class="sec-num">05</span><h2>模块三 · 项目跟进</h2><span class="tag">PROJECTS</span></div>
+  <p class="lead">这里回答的不是「做了什么」，而是<strong>「这件事现在到哪、下一步是谁、卡在哪」</strong>。项目与待办通过「所属项目」字段单向关联。</p>
+
+  <h3>项目卡结构</h3>
+  <div class="wire">
+    <div class="wire-cap">PROJECT CARD · 六段式</div>
+    <div class="wf-box" style="max-width:330px">
+      <div class="wf-row" style="justify-content:space-between;align-items:center">
+        <span style="font-weight:700;font-size:11px">项目名</span><span class="wf-pill" style="background:var(--red-soft);color:var(--red)">卡住了</span>
+      </div>
+      <div style="margin-top:5px;display:grid;grid-template-columns:34px 1fr;gap:3px;font-size:9px;color:#7c8b87">
+        <span>现在</span><span class="wf-line" style="margin-top:4px"></span>
+        <span>下一步</span><span class="wf-line s" style="margin-top:4px"></span>
+        <span style="color:var(--red);font-weight:700">卡在</span><span class="wf-line" style="margin-top:4px;background:#f0cfc9"></span>
+      </div>
+      <div style="margin-top:6px;height:4px;border-radius:2px;background:#eef4f3;overflow:hidden"><div style="width:50%;height:100%;background:var(--teal-2)"></div></div>
+      <div class="wf-row" style="justify-content:space-between;margin-top:4px">
+        <span class="mini" style="font-size:9px">关联待办 1/2 · 逾期 1</span><span class="wf-btn g">＋加一条</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>字段定义</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:96px">字段</th><th style="width:106px">类型</th><th>规则</th></tr></thead>
+      <tbody>
+        <tr><td>项目名</td><td>文本</td><td>必填，上限 40 字；重名允许但给出提示</td></tr>
+        <tr><td>现在到哪一步</td><td>文本</td><td>必填，一句话描述当前状态，上限 60 字。列表显示 2 行截断</td></tr>
+        <tr><td>下一步做什么</td><td>文本</td><td>必填，上限 60 字。这是项目卡最重要的字段——没有下一步的项目就是停滞项目</td></tr>
+        <tr><td>卡在哪</td><td>文本 + 状态</td><td>留空 = 没卡住；填写即视为阻塞，项目状态自动切换为「卡住了」，并进入置顶区</td></tr>
+        <tr><td>状态</td><td>四选一</td><td><span class="b b-teal">进行中</span> <span class="b b-red">卡住了</span> <span class="b b-blue">已完成</span> <span class="b b-gray">暂停</span>；「卡住了」由卡点字段自动驱动，不手动选</td></tr>
+        <tr><td>关联待办</td><td>反向计算</td><td>只读。统计该项目下所有任务的完成数与总数，实时计算完成率</td></tr>
+        <tr><td>更新时间</td><td>系统</td><td>任一字段变更即刷新；卡片底部显示「更新于 X」；超过 7 天未更新打一枚「久未更新」浅标</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>关联待办的计算口径</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>进度条</h4>
+      <p class="mini" style="margin:0 0 6px">完成率 = 已完成任务数 / 关联任务总数（含逾期、含无日期）。<br>关联任务为 0 时，进度条置灰并显示「暂无关联待办」，不显示 0%。</p>
+      <div style="height:6px;border-radius:3px;background:#eef4f3;overflow:hidden"><div style="width:50%;height:100%;background:var(--teal-2)"></div></div>
+      <p class="mini" style="margin:6px 0 0">示例：2/4 完成 → 条形填充 50%，文案「关联待办 2/4」。</p>
+    </div>
+    <div class="card">
+      <h4>逾期提示</h4>
+      <p class="mini" style="margin:0 0 6px">若关联任务中有逾期项，在进度文案后追加红色徽标「逾期 N」，并让整个项目卡左侧出现 3px 红条；同时该项目进入置顶区的「卡住项目」列表。</p>
+      <p class="mini" style="margin:0"><b>注意区分：</b>「有逾期任务」与「项目卡住」是两件事——前者是任务延迟，后者是外部阻塞。视觉上前者用红条、后者用「卡住了」标签。</p>
+    </div>
+  </div>
+
+  <h3>交互细节</h3>
+  <ul>
+    <li><strong>卡片内联编辑：</strong>「现在」「下一步」「卡在」三个字段点击即在原位变为输入框，失焦保存；不进入详情页就能完成日常更新。</li>
+    <li><strong>关联待办列表：</strong>卡片下方默认展示最近 3 条未完成关联任务（含日期与逾期状态），超出的收进「查看全部 N 条」，点击跳转今日待办并自动带上该项目筛选。</li>
+    <li><strong>加一条：</strong>从项目卡直接建任务，项目字段预填并锁定，建完回到项目卡，进度条即时更新。</li>
+    <li><strong>排序：</strong>默认「卡住 → 有逾期 → 最近更新」；顶部可切换「全部 / 进行中 / 卡住 / 已完成」。</li>
+    <li><strong>已完成项目：</strong>状态切为已完成时，卡片降低透明度并移入列表末尾，不删除，便于周末复盘回溯。</li>
+  </ul>
+</section>
+
+<!-- =========== 06 =========== -->
+<section id="s6">
+  <div class="sec-head"><span class="sec-num">06</span><h2>模块四 · 每周复盘</h2><span class="tag">WEEKLY</span></div>
+  <p class="lead">把前三个模块产生的数据自动汇总成一张周报底稿，用户只需要补一句总结。<strong>所有图表都由已有数据推导，不额外录入。</strong></p>
+
+  <h3>四个数据视角</h3>
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="t">本周完成</div>
+      <div class="v">12 <span style="font-size:12px;color:var(--ink-3);font-weight:600">件</span></div>
+      <div class="s">较上周 +3</div>
+      <div class="f">口径：doneAt ∈ 本周一 00:00 ~ 周日的任务</div>
+    </div>
+    <div class="kpi">
+      <div class="t">完成率</div>
+      <div class="v">67<span style="font-size:14px">%</span></div>
+      <div class="s">18 件中完成 12</div>
+      <div class="f">口径：本周到期或已完成的任务为分母</div>
+    </div>
+    <div class="kpi">
+      <div class="t">顺延次数</div>
+      <div class="v">7 <span style="font-size:12px;color:var(--ink-3);font-weight:600">次</span></div>
+      <div class="s" style="color:var(--amber)">2 件反复顺延 ＞2 次</div>
+      <div class="f">口径：本周内发生的 postpone 事件总数</div>
+    </div>
+    <div class="kpi">
+      <div class="t">推进项目</div>
+      <div class="v">4 <span style="font-size:12px;color:var(--ink-3);font-weight:600">个</span></div>
+      <div class="s">其中 1 个卡住</div>
+      <div class="f">口径：本周有任务完成或有字段更新的项目</div>
+    </div>
+  </div>
+
+  <h3>图表规格</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>① 优先级分布 · 横向条形</h4>
+      <p class="mini" style="margin:0 0 10px">四档各一条，条长按完成件数等比；条尾标数值，条内不放文字。</p>
+      <svg viewBox="0 0 300 108" style="width:100%;height:auto">
+        <g font-family="inherit" font-size="9" fill="#7c8b87">
+          <text x="0" y="14">紧急重要</text><text x="0" y="40">重要不紧急</text><text x="0" y="66">紧急不重要</text><text x="0" y="92">不急不重要</text>
+        </g>
+        <g>
+          <rect x="62" y="6" width="118" height="10" rx="3" fill="#c0392b" opacity=".85"/>
+          <rect x="62" y="32" width="168" height="10" rx="3" fill="#e08e3c" opacity=".85"/>
+          <rect x="62" y="58" width="66" height="10" rx="3" fill="#0d9488" opacity=".85"/>
+          <rect x="62" y="84" width="26" height="10" rx="3" fill="#9aadaa" opacity=".9"/>
+        </g>
+        <g font-family="inherit" font-size="9" fill="#4a5c58" font-weight="700">
+          <text x="186" y="14">6</text><text x="236" y="40">8</text><text x="134" y="66">3</text><text x="94" y="92">1</text>
+        </g>
+      </svg>
+    </div>
+    <div class="card">
+      <h4>② 精力分布 · 环形图</h4>
+      <p class="mini" style="margin:0 0 8px">按项目切分本周完成件数；未挂项目的合并为「其他」。最多展示 5 个项目 + 其他。</p>
+      <svg viewBox="0 0 240 116" style="width:100%;height:auto">
+        <g transform="translate(66,58)">
+          <circle r="38" fill="none" stroke="#eef4f3" stroke-width="16"/>
+          <circle r="38" fill="none" stroke="#0f766e" stroke-width="16" stroke-dasharray="107 132" transform="rotate(-90)"/>
+          <circle r="38" fill="none" stroke="#1e5f8a" stroke-width="16" stroke-dasharray="57 182" transform="rotate(46)"/>
+          <circle r="38" fill="none" stroke="#5fa8a0" stroke-width="16" stroke-dasharray="45 194" transform="rotate(134)"/>
+          <circle r="38" fill="none" stroke="#c7d6d3" stroke-width="16" stroke-dasharray="30 209" transform="rotate(215)"/>
+          <text y="-1" text-anchor="middle" font-size="17" font-weight="800" fill="#152420">12</text>
+          <text y="12" text-anchor="middle" font-size="8" fill="#7c8b87">本周完成</text>
+        </g>
+        <g font-size="9" fill="#4a5c58">
+          <g transform="translate(126,26)"><rect width="7" height="7" rx="2" fill="#0f766e"/><text x="12" y="7">Q3 增长方案 · 5</text></g>
+          <g transform="translate(126,46)"><rect width="7" height="7" rx="2" fill="#1e5f8a"/><text x="12" y="7">首页改版 · 3</text></g>
+          <g transform="translate(126,66)"><rect width="7" height="7" rx="2" fill="#5fa8a0"/><text x="12" y="7">博客迁移 · 2</text></g>
+          <g transform="translate(126,86)"><rect width="7" height="7" rx="2" fill="#c7d6d3"/><text x="12" y="7">其他 · 2</text></g>
+        </g>
+      </svg>
+    </div>
+    <div class="card">
+      <h4>③ 一周节奏 · 柱状图</h4>
+      <p class="mini" style="margin:0 0 10px">周一至周日每日完成件数，今天高亮；柱顶标数，无数据日显示 0 保持基线完整。</p>
+      <svg viewBox="0 0 300 96" style="width:100%;height:auto">
+        <g stroke="#eef4f3" stroke-width="1">
+          <line x1="0" y1="70" x2="300" y2="70"/><line x1="0" y1="44" x2="300" y2="44"/><line x1="0" y1="18" x2="300" y2="18"/>
+        </g>
+        <g>
+          <rect x="14" y="52" width="22" height="18" rx="3" fill="#0d9488" opacity=".55"/>
+          <rect x="55" y="40" width="22" height="30" rx="3" fill="#0d9488" opacity=".55"/>
+          <rect x="96" y="62" width="22" height="8" rx="3" fill="#0d9488" opacity=".55"/>
+          <rect x="137" y="30" width="22" height="40" rx="3" fill="#0d9488" opacity=".55"/>
+          <rect x="178" y="48" width="22" height="22" rx="3" fill="#0d9488" opacity=".55"/>
+          <rect x="219" y="18" width="22" height="52" rx="3" fill="#0f766e"/>
+          <rect x="260" y="70" width="22" height="2" rx="1" fill="#dbe7e5"/>
+        </g>
+        <g font-size="8.5" fill="#7c8b87" text-anchor="middle">
+          <text x="25" y="86">一</text><text x="66" y="86">二</text><text x="107" y="86">三</text><text x="148" y="86">四</text><text x="189" y="86">五</text>
+          <text x="230" y="86" fill="#0f766e" font-weight="700">六</text><text x="271" y="86">日</text>
+        </g>
+        <g font-size="8" fill="#4a5c58" text-anchor="middle" font-weight="700">
+          <text x="25" y="48">2</text><text x="66" y="36">3</text><text x="107" y="58">1</text><text x="148" y="26">4</text><text x="189" y="44">2</text><text x="230" y="14">5</text>
+        </g>
+      </svg>
+    </div>
+    <div class="card">
+      <h4>④ 卡点汇总 · 列表</h4>
+      <p class="mini" style="margin:0 0 8px">本周内所有「卡在哪」的变更记录，按项目分组，标注持续时间与是否解除。</p>
+      <div style="font-size:12px;color:var(--ink-2)">
+        <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)"><span class="b b-red">未解除</span><span style="flex:1">Q3 增长方案 · 渠道数据缺口径</span><span class="mini">持续 6 天</span></div>
+        <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)"><span class="b b-teal">已解除</span><span style="flex:1">首页改版 · 等法务确认文案</span><span class="mini">持续 2 天</span></div>
+        <div style="display:flex;gap:8px;padding:6px 0"><span class="b b-teal">已解除</span><span style="flex:1">博客迁移 · 域名解析未生效</span><span class="mini">持续 1 天</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>周报底稿与总结</h3>
+  <ul>
+    <li><strong>自动生成底稿：</strong>按「本周完成 / 未完成与顺延 / 项目进展 / 卡点」四段生成一段纯文本，用户可一键复制到微信或邮件。</li>
+    <li><strong>手写总结：</strong>底部三个输入框——「这周做得好的」「下周要注意的」「下周重点」，写入当周复盘记录，历史周可回看。</li>
+    <li><strong>周切换：</strong>顶部「‹ 10/12 – 10/18 ›」左右切换，最早到工作台创建周，未来周不可选。</li>
+    <li><strong>空周处理：</strong>本周没有任何完成记录时，图表保持框架并显示「本周还没有完成记录」，不显示破图或 0 值堆叠。</li>
+  </ul>
+</section>
+
+<!-- =========== 07 =========== -->
+<section id="s7">
+  <div class="sec-head"><span class="sec-num">07</span><h2>全局置顶 · 今天要处理的</h2><span class="tag">ALERT BAR</span></div>
+  <p class="lead">跨模块的警报层，出现在每个模块页内容区最上方。只在<strong>有内容时完整展开</strong>，无事时收成一行轻提示。</p>
+
+  <h3>收录规则</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:130px">条目类型</th><th style="width:96px">判定</th><th>展示内容与动作</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b b-red">逾期任务</span></td><td>未完成 且 截止日 &lt; 今天</td><td>任务标题 + 原定日期 + 「逾期 N 天」+ 顺延次数；动作：<b>完成</b> / <b>顺延到明天</b></td></tr>
+        <tr><td><span class="b b-red">卡住的项目</span></td><td>状态为「卡住了」</td><td>项目名 + 卡点原文 + 下一步；动作：<b>看待办</b> / <b>去处理</b>（跳到项目卡编辑卡点）</td></tr>
+        <tr><td><span class="b b-amber">反复顺延</span></td><td>顺延次数 ≥ 2 且仍未完成</td><td>并入逾期条目，额外挂一枚「已顺延 N 次」提示，文案引导「要不要拆小一点或直接删掉」</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>三种形态</h3>
+  <div class="grid-3">
+    <div class="card" style="border-color:#eecfc9;background:var(--red-soft)">
+      <h4 style="color:var(--red)">有警报</h4>
+      <p class="mini" style="margin:0">红底浅填充 + 左侧红条。标题「今天要处理的」，副标「逾期 2 · 卡住 1」。右上角「全部顺延到明天」批量动作，需要二次确认（列出将被改期的任务名）。</p>
+    </div>
+    <div class="card">
+      <h4>全部清空</h4>
+      <p class="mini" style="margin:0">收缩为一行，左侧一个勾图标 + 文案「今天没有逾期，也没有卡住的项目」。不庆祝、不放礼花，保持安静。</p>
+    </div>
+    <div class="card">
+      <h4>手机端</h4>
+      <p class="mini" style="margin:0">默认展开前 3 条，剩余折叠为「还有 N 项」。每条右侧只保留最关键的一个按钮（逾期给「顺延」，卡住给「去处理」），其余收进「⋯」。</p>
+    </div>
+  </div>
+</section>
+
+<!-- =========== 08 =========== -->
+<section id="s8">
+  <div class="sec-head"><span class="sec-num">08</span><h2>顺延与联动规则</h2><span class="tag">RULES</span></div>
+
+  <h3>Y2T：昨天没做完的自动挪到今天</h3>
+  <p>用户不需要手动操作，规则由系统在<strong>每次打开页面时</strong>执行一次（加一个「上次运行日期」戳避免重复执行）。</p>
+  <div class="flow">
+    <span class="flow-node">未完成任务 且 截止日 &lt; 今天</span>
+    <span class="flow-ar">▸</span>
+    <span class="flow-node k">截止日 改为 今天</span>
+    <span class="flow-ar">▸</span>
+    <span class="flow-node">顺延次数 +1</span>
+    <span class="flow-ar">▸</span>
+    <span class="flow-node">写入顺延流水</span>
+    <span class="flow-ar">▸</span>
+    <span class="flow-node r">出现在今日清单顶部（标红）</span>
+  </div>
+
+  <div class="note warn">
+    <span class="nt">这里有一个容易做错的地方</span>
+    如果「昨天没做完的自动挪到今天」，那任务就永远不逾期，也就永远标不红、进不了「今天要处理的」。<br>
+    <b>本设计的处理：</b>自动顺延只发生在<strong>跨天时把旧任务带到今天</strong>，但保留一个 <code>originalDate</code> 原定日期字段。<br>
+    判定逾期看的是 <code>originalDate &lt; 今天 且 顺延次数 ≥ 1</code>——换句话说，<b>今天到期的算「今天要做」，从过去挪过来的算「逾期但已顺延」</b>，前者白底，后者红底并标注「原定 10/15 · 逾期 3 天 · 顺延 2 次」。这样既不丢任务，也不掩盖拖延。
+  </div>
+
+  <h3>规则清单</h3>
+  <ul class="rules">
+    <li><strong>自动顺延：</strong>任务未完成且 <code>date &lt; 今天</code> → <code>date = 今天</code>、<code>postponeCount += 1</code>、流水追加 <code>{from, to: 今天, auto: true}</code>。</li>
+    <li><strong>手动顺延：</strong>点击「顺延」→ 规则同上，但 <code>auto: false</code>，并给一条「已顺延到明天，第 N 次」的 toast，5 秒内可撤销。</li>
+    <li><strong>批量顺延：</strong>「全部顺延到明天」只作用于<strong>逾期任务</strong>，不动卡住项目；执行前确认弹窗列出任务名与件数。</li>
+    <li><strong>顺延达 3 次：</strong>该任务行出现一枚提示「这件事已顺延 3 次」，展开提供两个建议动作：「拆成两步」或「删除」。</li>
+    <li><strong>删任务：</strong>二次确认；若任务挂了项目，删除后项目进度自动重算，不留下幽灵计数。</li>
+    <li><strong>打勾完成：</strong>写入 <code>doneAt = now</code>；若关联项目，该项目卡的进度与逾期徽标即时刷新。</li>
+    <li><strong>改项目：</strong>任务从 A 项目改挂到 B，两边项目卡同时刷新，不做缓存。</li>
+    <li><strong>删项目：</strong>项目下的任务不删除，<code>projectId</code> 置空，任务退回「无项目」，并提示「已解除 3 个任务的关联」。</li>
+    <li><strong>卡点驱动状态：</strong>卡点字段从空 → 非空，项目状态自动置为「卡住了」并进入置顶区；清空卡点则回到「进行中」。</li>
+    <li><strong>周复盘只读：</strong>周复盘页不改任何原始数据，只在用户写总结时写入 <code>weeklyNotes</code>。</li>
+  </ul>
+</section>
+
+<!-- =========== 09 =========== -->
+<section id="s9">
+  <div class="sec-head"><span class="sec-num">09</span><h2>数据模型</h2><span class="tag">DATA</span></div>
+  <p class="lead">四张表的轻量关系模型，全部落在单个 localStorage 命名空间下，互不嵌套，便于导出与迁移。</p>
+
+  <h3>实体关系</h3>
+  <div class="flow">
+    <span class="flow-node k">project</span>
+    <span class="flow-ar">1 ─── n</span>
+    <span class="flow-node">todo</span>
+    <span class="flow-ar">·</span>
+    <span class="flow-node">note</span>
+    <span class="flow-ar">（独立）</span>
+    <span class="flow-node k">weeklyReview</span>
+    <span class="flow-ar">（派生 + 手写总结）</span>
+  </div>
+
+  <h3>字段表</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:110px">todo</th><th style="width:80px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>id</td><td>string</td><td>唯一标识</td></tr>
+        <tr><td>title</td><td>string</td><td>标题</td></tr>
+        <tr><td>priority</td><td>enum</td><td><code>P0</code> 紧急重要 / <code>P1</code> 重要不紧急 / <code>P2</code> 紧急不重要 / <code>P3</code> 不急不重要</td></tr>
+        <tr><td>date</td><td>date</td><td>当前截止日期，可空</td></tr>
+        <tr><td>originalDate</td><td>date</td><td>首次设定的截止日期，逾期判定依据</td></tr>
+        <tr><td>projectId</td><td>string | null</td><td>所属项目</td></tr>
+        <tr><td>status</td><td>enum</td><td><code>todo</code> / <code>done</code></td></tr>
+        <tr><td>doneAt</td><td>datetime | null</td><td>完成时间，周复盘统计依据</td></tr>
+        <tr><td>postponeCount</td><td>int</td><td>顺延次数</td></tr>
+        <tr><td>postponeLog</td><td>array</td><td><code>[{from, to, at, auto}]</code></td></tr>
+        <tr><td>note</td><td>string</td><td>备注</td></tr>
+        <tr><td>createdAt</td><td>datetime</td><td>创建时间</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:110px">project</th><th style="width:80px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>id</td><td>string</td><td>唯一标识</td></tr>
+        <tr><td>name</td><td>string</td><td>项目名</td></tr>
+        <tr><td>current</td><td>string</td><td>现在到哪一步</td></tr>
+        <tr><td>next</td><td>string</td><td>下一步做什么</td></tr>
+        <tr><td>blocker</td><td>string</td><td>卡在哪，空 = 没卡住</td></tr>
+        <tr><td>status</td><td>enum</td><td><code>active</code> / <code>blocked</code> / <code>done</code> / <code>paused</code></td></tr>
+        <tr><td>blockerLog</td><td>array</td><td><code>[{text, startAt, endAt}]</code>，用于周复盘卡点汇总</td></tr>
+        <tr><td>updatedAt</td><td>datetime</td><td>最近更新</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h4>note</h4>
+      <p class="mini" style="margin:0"><code>id, content, tags[], pinned, createdAt, updatedAt</code></p>
+    </div>
+    <div class="card">
+      <h4>weeklyReview</h4>
+      <p class="mini" style="margin:0"><code>weekStart, good, watch, focus, updatedAt</code>（四类统计全部由前两张表实时派生，不落库）</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <span class="nt">存储与备份</span>
+    命名空间 <code>wb_office_*</code>；提供 JSON 全量导出 / 导入（导入覆盖前二次确认，支持上千条）；数据累积到 30 条时在页面底部温和提示一次备份；清空需输入「清空」二字确认。
+  </div>
+</section>
+
+<!-- =========== 10 =========== -->
+<section id="s10">
+  <div class="sec-head"><span class="sec-num">10</span><h2>视觉与交互规范</h2><span class="tag">VISUAL</span></div>
+
+  <h3>色彩</h3>
+  <p>白底为主，蓝绿作为唯一的品牌色系，饱和度压低一档，避免「工具感过强」。红只给逾期与阻塞，其余场合一律不用红色。</p>
+  <div class="swatches">
+    <div class="sw"><div class="c" style="background:#ffffff"></div><div class="m"><b>纸白</b><span>#FFFFFF</span></div></div>
+    <div class="sw"><div class="c" style="background:#f6f8f9"></div><div class="m"><b>页面底色</b><span>#F6F8F9</span></div></div>
+    <div class="sw"><div class="c" style="background:#0f766e"></div><div class="m"><b>主色 深青</b><span>#0F766E</span></div></div>
+    <div class="sw"><div class="c" style="background:#0d9488"></div><div class="m"><b>主色 亮青</b><span>#0D9488</span></div></div>
+    <div class="sw"><div class="c" style="background:#1e5f8a"></div><div class="m"><b>辅色 钢蓝</b><span>#1E5F8A</span></div></div>
+    <div class="sw"><div class="c" style="background:#e8f4f2"></div><div class="m"><b>青色浅底</b><span>#E8F4F2</span></div></div>
+    <div class="sw"><div class="c" style="background:#152420"></div><div class="m"><b>正文墨</b><span>#152420</span></div></div>
+    <div class="sw"><div class="c" style="background:#c0392b"></div><div class="m"><b>警示红（仅逾期/阻塞）</b><span>#C0392B</span></div></div>
+  </div>
+
+  <h3>字体与间距</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>字阶</h4>
+      <p class="mini" style="margin:0 0 4px">系统字体栈：<code>-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei"</code></p>
+      <div style="line-height:1.5">
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.2px">页面标题 22 / 800</div>
+        <div style="font-size:15px;font-weight:700">卡片标题 15 / 700</div>
+        <div style="font-size:14px">正文 14 / 400</div>
+        <div style="font-size:12px;color:var(--ink-3)">辅助信息 12 / 400</div>
+        <div style="font-size:11px;font-family:var(--mono);color:var(--ink-3)">数字与日期 MONO / TABULAR-NUMS</div>
+      </div>
+    </div>
+    <div class="card">
+      <h4>间距与圆角</h4>
+      <p class="mini" style="margin:0 0 8px">间距基数 4px：<span class="spec">4 / 8 / 12 / 16 / 24 / 32</span><br>卡片内边距 20px，卡片间距 14px，模块间距 32px。</p>
+      <p class="mini" style="margin:0 0 8px">圆角：卡片 <span class="spec">14px</span>，按钮 <span class="spec">10px</span>，标签 <span class="spec">5px</span>，输入框 <span class="spec">10px</span>。</p>
+      <p class="mini" style="margin:0">阴影只用在浮层（抽屉、弹层、toast），平面卡片一律用 1px 描边 <code>#E2E9E7</code>，不做投影堆叠。</p>
+    </div>
+  </div>
+
+  <h3>图标</h3>
+  <p>全部内联 SVG，24×24 网格、1.6px 线宽、圆头圆角连接，不使用 emoji。四个模块各一枚独特图形：待办=清单、灵感=便签、项目=堆叠图层、复盘=环形进度。</p>
+
+  <h3>动效</h3>
+  <ul>
+    <li>模块切换：内容区淡入上移 8px，180ms，<code>ease-out</code>。</li>
+    <li>完成任务：行背景转浅青 120ms → 高度收起 200ms → 移入折叠区。</li>
+    <li>进度条变化：宽度 300ms 过渡，不做数字滚动。</li>
+    <li>不做：礼花、弹跳、连续脉冲边框。商务场景的反馈应当克制。</li>
+    <li>尊重 <code>prefers-reduced-motion</code>，开启时全部降为 1ms。</li>
+  </ul>
+
+  <h3>关键组件规格</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:130px">组件</th><th style="width:120px">尺寸</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>任务行</td><td>高 56px</td><td>勾选框 20px（热区 44px）· 标题 flex 1 · 优先级标签 · 日期胶囊 · 顺延按钮</td></tr>
+        <tr><td>主按钮</td><td>高 40px / 圆角 10</td><td>深青底白字，hover 提亮 6%</td></tr>
+        <tr><td>次按钮</td><td>高 36px</td><td>透明底 + 描边，hover 浅青底</td></tr>
+        <tr><td>优先级标签</td><td>高 20px</td><td>左侧 7px 色点 + 文字，不用整块填色，避免页面过花</td></tr>
+        <tr><td>标签胶囊</td><td>高 24px</td><td>浅青底 + 深青字，前面带 #</td></tr>
+        <tr><td>输入框</td><td>高 40px</td><td>聚焦时描边转主色 + 外圈 3px 浅青，不用阴影</td></tr>
+        <tr><td>空状态</td><td>—</td><td>一句说明 + 一个主操作，不放插画，保持安静</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>页头配图</h3>
+  <p>页头右侧一枚低对比的等距线框图形（浅青与钢蓝，透明度 4%–18%），抽象表达「任务面板 + 进度环 + 方块堆叠」。纯内联 SVG，无外链、无图片文件、无版权风险，任意宽度下等比缩放。<strong>图形与文字保持 40% 以上留白间距，不压标题。</strong></p>
+</section>
+
+<!-- =========== 11 =========== -->
+<section id="s11">
+  <div class="sec-head"><span class="sec-num">11</span><h2>边界与后续迭代</h2><span class="tag">SCOPE</span></div>
+
+  <h3>本期明确不做</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>功能边界</h4>
+      <ul style="margin-bottom:0">
+        <li>账号体系与多人协作——个人工作台，一人一份数据</li>
+        <li>子任务与多级项目结构——避免维护成本超过收益</li>
+        <li>提醒推送与日历同步——靠打开即见，不做系统通知</li>
+        <li>附件与图片上传——超出轻量工作台范畴</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>结构边界</h4>
+      <ul style="margin-bottom:0">
+        <li>不设第五个模块：置顶警报区不是模块，不占导航位</li>
+        <li>不做全局搜索：四个模块的数据量在个人场景下不需要</li>
+        <li>不做主题切换：白底蓝绿是唯一形态，减少选择</li>
+        <li>不做甘特图：项目只看状态与卡点，不做时间排布</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>可能的后续迭代（按价值排序）</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:56px">序号</th><th style="width:150px">迭代项</th><th>说明</th><th style="width:88px">优先级</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>数据接资料来源库</td><td>把 localStorage 换成资料库数据表，实现多设备同步与在线链接；页面加同步状态指示</td><td><span class="b b-teal">高</span></td></tr>
+        <tr><td>2</td><td>任务拆解</td><td>只允许一层子项，用于处理「顺延 3 次」的顽固任务</td><td><span class="b b-amber">中</span></td></tr>
+        <tr><td>3</td><td>复盘历史对比</td><td>周复盘中加入最近 4 周的完成量折线与顺延趋势</td><td><span class="b b-amber">中</span></td></tr>
+        <tr><td>4</td><td>键盘快捷操作</td><td><code>N</code> 新建、<code>/</code> 聚焦输入、<code>1–4</code> 切模块，服务重度桌面用户</td><td><span class="b b-gray">低</span></td></tr>
+        <tr><td>5</td><td>打印/导出周报</td><td>把周复盘导出为单页 PDF 版式</td><td><span class="b b-gray">低</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>待你确认的点</h3>
+  <div class="note">
+    <span class="nt">确认后我就按这份文档直接搭页面</span>
+    <ul style="margin:6px 0 0">
+      <li><strong>逾期口径：</strong>是否认同「自动顺延 + 保留原定日期」的做法（任务挪到今天但依然标红）？若你更想要「顺延后就不算逾期、只算今天要做」，我改判定逻辑。</li>
+      <li><strong>优先级命名：</strong>用「紧急重要 / 重要不紧急 / 紧急不重要 / 不急不重要」，还是简化为「高 / 中 / 低」三档？</li>
+      <li><strong>项目数量：</strong>项目卡默认全部平铺，还是超过 6 个时自动折叠为「其余 N 个项目」？</li>
+      <li><strong>灵感转任务：</strong>需要保留「转成任务后灵感和任务互相关联」吗？我默认只做单向转化，不保留关联。</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <span>办公工作台 · 产品设计说明 v0.1</span>
+    <span>下一步：确认后统一实现为单文件 HTML，桌面左导航 + 移动端底部 Tab</span>
+  </div>
+</section>
+
+</main>
+</div>
+
+<a href="#" class="totop" aria-label="回到顶部">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+</a>
+
+<script>
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+
+  function onScroll(){
+    var y = window.scrollY + 120, idx = 0;
+    for (var i = 0; i < secs.length; i++){
+      if (secs[i] && secs[i].offsetTop <= y) idx = i;
+    }
+    links.forEach(function(a, i){ a.classList.toggle('active', i === idx); });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+</script>
+</body>
+</html>

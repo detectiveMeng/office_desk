@@ -1,0 +1,19 @@
+# 办公工作台 —— Cargo workspace 根
+# 分层：core（领域层，纯函数，仅 chrono）→ app（GPUI 渲染 + SQLite 存储）
+# 这样 `cargo test -p office_desk_core` 无需编译整个 GPUI/SQLite 依赖栈。
+
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/app"]
+
+# 开发期：框架依赖按 release 优化，避免 cargo run 下渲染卡顿（编译不加速，仅运行提速）
+[profile.dev.package]
+gpui-pre = { opt-level = 3 }
+gpui-component = { opt-level = 3 }
+gpui-kit = { opt-level = 3 }
+gpui-kit-assets = { opt-level = 3 }
+gpui-pre-macros = { opt-level = 3 }
+gpui-pre-platform = { opt-level = 3 }
+rustybuzz = { opt-level = 3 }
+taffy = { opt-level = 3 }
+ttf-parser = { opt-level = 3 }

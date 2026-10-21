@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>办公工作台 · 技术方案（Rust / GPUI / SQLite）</title>
+<style>
+:root{
+  --bg:#f6f8f9;--paper:#fff;--ink:#152420;--ink-2:#4a5c58;--ink-3:#7c8b87;
+  --line:#e2e9e7;--line-2:#eef3f2;--teal:#0f766e;--teal-2:#0d9488;
+  --teal-ink:#0b4f4a;--teal-soft:#e8f4f2;--teal-soft-2:#f2f9f8;--blue:#1e5f8a;
+  --red:#c0392b;--red-soft:#fdf0ee;--amber:#a86413;--amber-soft:#fdf6e9;
+  --radius:14px;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.75;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+a{color:var(--teal);text-decoration:none}
+.shell{display:grid;grid-template-columns:252px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--paper);border-right:1px solid var(--line);padding:24px 0 28px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;padding:0 22px 20px;border-bottom:1px solid var(--line-2);margin-bottom:14px}
+.brand-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(140deg,var(--teal),var(--blue));display:grid;place-items:center;flex:none}
+.brand-name{font-size:13.5px;font-weight:700}
+.brand-sub{font-size:10.5px;color:var(--ink-3);letter-spacing:.6px;text-transform:uppercase;margin-top:1px}
+.side-group{padding:0 12px;margin-bottom:6px}
+.side-group-t{font-size:10.5px;font-weight:700;color:var(--ink-3);letter-spacing:1.2px;text-transform:uppercase;padding:8px 10px 6px}
+.toc{list-style:none}
+.toc a{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;font-size:13px;color:var(--ink-2);line-height:1.5}
+.toc a .n{font-family:var(--mono);font-size:11px;color:var(--ink-3);width:16px;flex:none;font-weight:600}
+.toc a:hover{background:var(--teal-soft-2);color:var(--teal-ink)}
+.toc a.active{background:var(--teal-soft);color:var(--teal-ink);font-weight:600}
+.side-foot{margin-top:auto;padding:18px 22px 0;border-top:1px solid var(--line-2);font-size:11px;color:var(--ink-3);line-height:1.7}
+.side-foot b{color:var(--ink-2);font-weight:600}
+main{max-width:1080px;width:100%;padding:0 40px 96px}
+.hero{position:relative;margin:0 -40px 0;padding:46px 40px 38px;background:linear-gradient(180deg,#f0f7f6 0%,#f7faf9 62%,#f6f8f9 100%);border-bottom:1px solid var(--line)}
+.hero-inner{max-width:760px}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--teal);background:#fff;border:1px solid #d6e8e5;border-radius:999px;padding:4px 12px}
+.eyebrow .d{width:5px;height:5px;border-radius:50%;background:var(--teal-2)}
+.hero h1{font-size:30px;font-weight:800;letter-spacing:-.3px;line-height:1.32;margin:16px 0 10px}
+.hero h1 em{font-style:normal;color:var(--teal)}
+.hero p{font-size:14px;color:var(--ink-2);max-width:640px}
+.hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.meta-chip{font-size:11.5px;color:var(--ink-2);background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:7px;padding:4px 10px}
+.meta-chip b{color:var(--ink);font-weight:600}
+section{padding-top:44px;scroll-margin-top:16px}
+.sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;padding-bottom:12px;border-bottom:2px solid var(--ink)}
+.sec-num{font-family:var(--mono);font-size:12px;font-weight:700;color:#fff;background:var(--ink);border-radius:5px;padding:2px 7px;flex:none;position:relative;top:-2px}
+.sec-head h2{font-size:20px;font-weight:800;flex:1}
+.sec-head .tag{font-size:11px;color:var(--ink-3);font-family:var(--mono);letter-spacing:.5px}
+h3{font-size:15px;font-weight:700;margin:30px 0 12px;display:flex;align-items:center;gap:9px}
+h3::before{content:"";width:3px;height:14px;border-radius:2px;background:var(--teal);flex:none}
+h4{font-size:13.5px;font-weight:700;margin:18px 0 8px}
+p{margin-bottom:10px;color:var(--ink-2)}
+p.lead{font-size:14.5px}
+strong{color:var(--ink);font-weight:600}
+code{font-family:var(--mono);font-size:12px;background:#eef4f3;border:1px solid #e0ebe9;border-radius:4px;padding:1px 5px;color:var(--teal-ink)}
+ul,ol{margin:0 0 12px 0;padding-left:0;list-style:none}
+ul li,ol li{padding-left:16px;position:relative;margin-bottom:6px;color:var(--ink-2)}
+ul li::before{content:"";position:absolute;left:3px;top:10px;width:5px;height:5px;border-radius:50%;background:#a9c3bd}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:14px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.note{border-left:3px solid var(--teal-2);background:var(--teal-soft-2);border-radius:0 10px 10px 0;padding:14px 18px;margin:14px 0;font-size:13.5px;color:var(--teal-ink)}
+.note b{color:var(--teal-ink)}
+.note.warn{border-left-color:#d9a441;background:var(--amber-soft);color:#6d4510}
+.note.warn b{color:#5e3a0c}
+.note.danger{border-left-color:#d4736a;background:var(--red-soft);color:#8f3226}
+.note.danger b{color:#7d2a20}
+.note .nt{display:block;font-size:10.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;opacity:.75;margin-bottom:3px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+thead th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-3);background:#fafcfc;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody td{padding:9px 14px;border-bottom:1px solid var(--line-2);color:var(--ink-2);vertical-align:top;line-height:1.65}
+tbody tr:last-child td{border-bottom:none}
+tbody td:first-child{color:var(--ink);font-weight:600}
+td .code,.code{font-family:var(--mono);font-size:11.5px;color:var(--teal-ink)}
+.mini{font-size:11.5px;color:var(--ink-3)}
+.b{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px;line-height:1.6;white-space:nowrap}
+.b-red{background:var(--red-soft);color:var(--red)}
+.b-teal{background:var(--teal-soft);color:var(--teal)}
+.b-amber{background:var(--amber-soft);color:var(--amber)}
+.b-gray{background:#f0f3f3;color:var(--ink-3)}
+.b-blue{background:#eef3f8;color:var(--blue)}
+pre{background:#12201d;color:#d6e6e2;border-radius:11px;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.2px;line-height:1.7;margin:12px 0;border:1px solid #1e3630}
+pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
+.k{color:#7fd1c4}.s{color:#c9e88a}.c{color:#6f8c86;font-style:italic}.n{color:#f0b866}.at{color:#8fb8e8}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 4px}
+.flow-node{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.flow-node.k{background:var(--teal-soft);border-color:#cfe6e2;color:var(--teal-ink)}
+.flow-node.r{background:var(--red-soft);border-color:#eecfc9;color:var(--red)}
+.flow-ar{color:#b6c9c4;font-family:var(--mono);font-size:13px}
+.checks{list-style:none;counter-reset:c}
+.checks li{counter-increment:c;padding:10px 12px 10px 40px;position:relative;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:8px;font-size:13px;color:var(--ink-2)}
+.checks li::before{content:counter(c);position:absolute;left:12px;top:11px;width:18px;height:18px;border-radius:5px;background:var(--teal-soft);color:var(--teal);font-family:var(--mono);font-size:10.5px;font-weight:700;display:grid;place-items:center}
+.foot{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.totop{position:fixed;right:22px;bottom:22px;width:40px;height:40px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:0 4px 16px -4px rgba(20,40,36,.16);display:grid;place-items:center;color:var(--ink-2);z-index:20}
+.totop:hover{color:var(--teal);border-color:#cfe6e2}
+@media(max-width:900px){
+  .shell{grid-template-columns:1fr}.side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);padding:16px 0 10px}
+  .brand{padding-bottom:12px;margin-bottom:8px}.toc{display:flex;flex-wrap:wrap;gap:4px}.toc a{font-size:12px;padding:5px 9px;background:#f4f8f7}
+  .side-foot{display:none}main{padding:0 18px 70px}.hero{margin:0 -18px;padding:32px 18px 26px}
+  .hero h1{font-size:23px}.grid-2,.grid-3{grid-template-columns:1fr}pre{font-size:11.4px;padding:13px 14px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<aside class="side">
+  <div class="brand">
+    <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 4v5"/></svg></div>
+    <div><div class="brand-name">办公工作台</div><div class="brand-sub">Tech Spec · Rust</div></div>
+  </div>
+
+  <div class="side-group">
+    <div class="side-group-t">方案总览</div>
+    <ul class="toc">
+      <li><a href="#t1"><span class="n">01</span>技术选型与约束</a></li>
+      <li><a href="#t2"><span class="n">02</span>整体架构</a></li>
+      <li><a href="#t3"><span class="n">03</span>数据层（SQLite）</a></li>
+      <li><a href="#t4"><span class="n">04</span>领域逻辑层</a></li>
+    </ul>
+  </div>
+  <div class="side-group">
+    <div class="side-group-t">实现细节</div>
+    <ul class="toc">
+      <li><a href="#t5"><span class="n">05</span>渲染层（GPUI）</a></li>
+      <li><a href="#t6"><span class="n">06</span>可视化实现</a></li>
+      <li><a href="#t7"><span class="n">07</span>交互与事件</a></li>
+      <li><a href="#t8"><span class="n">08</span>主题与配置</a></li>
+    </ul>
+  </div>
+  <div class="side-group">
+    <div class="side-group-t">质量与交付</div>
+    <ul class="toc">
+      <li><a href="#t9"><span class="n">09</span>安全与数据完整性</a></li>
+      <li><a href="#t10"><span class="n">10</span>构建与自检</a></li>
+      <li><a href="#t11"><span class="n">11</span>交付物与排期</a></li>
+    </ul>
+  </div>
+
+  <div class="side-foot"><b>v0.2 技术方案</b><br>依据：产品设计说明 v0.1<br>Rust + GPUI + SQLite · 仅 Windows</div>
+</aside>
+
+<main>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow"><span class="d"></span>Tech Spec · v0.2</span>
+    <h1>办公工作台<br><em>原生桌面实现方案</em></h1>
+    <p class="lead">把产品设计说明落成可施工的原生桌面应用：Rust 编写、GPUI 渲染、SQLite 存储、主题配色可配置。领域口径（逾期 / 顺延 / 周复盘）与 v0.1 完全一致，仅替换运行形态与数据层。</p>
+    <div class="hero-meta">
+      <span class="meta-chip">语言 <b>Rust</b></span>
+      <span class="meta-chip">渲染 <b>GPUI</b></span>
+      <span class="meta-chip">存储 <b>SQLite</b></span>
+      <span class="meta-chip">平台 <b>仅 Windows</b></span>
+      <span class="meta-chip">可配置 <b>主题 / 配色</b></span>
+    </div>
+  </div>
+</header>
+
+<!-- 01 -->
+<section id="t1">
+  <div class="sec-head"><span class="sec-num">01</span><h2>技术选型与约束</h2><span class="tag">STACK</span></div>
+
+  <h3>选型结论</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:132px">维度</th><th style="width:170px">选择</th><th>理由与代价</th></tr></thead>
+      <tbody>
+        <tr><td>运行形态</td><td>原生桌面应用（<code>office_desk.exe</code>）</td><td>从「双击单文件 HTML」升级为「编译产物」。不再是 file:// 网页，无浏览器兼容负担</td></tr>
+        <tr><td>语言</td><td>Rust（stable，edition 2024，MSRV 1.92）</td><td>类型安全 + 内存安全 + 单测一等公民；领域层纯函数天然可 <code>cargo test</code></td></tr>
+        <tr><td>UI 框架</td><td><span class="b b-amber">GPUI（锁版本）</span></td><td>Zed 编辑器同款。像素级渲染 + 高质量文字排版，最贴合设计稿。组件层用现成的 <code>gpui-component</code>（60+ 组件，见右侧声明）</td></tr>
+        <tr><td>存储</td><td>SQLite（<code>rusqlite</code> + <code>bundled</code>）</td><td>真关系、事务原子写、外键、无容量上限；<code>bundled</code> 把 SQLite 编译进二进制，避免 Windows 上散落 DLL</td></tr>
+        <tr><td>日期</td><td><code>chrono</code>（<code>NaiveDate</code>/<code>NaiveDateTime</code>）</td><td>替换原「YYYY-MM-DD 字符串」技巧，用真类型规避时区与比较错误；DB 内仍落 TEXT</td></tr>
+        <tr><td>配置</td><td>TOML 文件 + 应用内设置页</td><td>本期仅开放主题 / 配色；其余（优先级命名、周起始、快捷键）沿用默认值</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>硬约束</h3>
+  <ul>
+    <li><strong>仅 Windows：</strong>不承诺 macOS/Linux；GPUI 在 Windows 属前沿地带，需 MSVC 工具链 + 较新 stable Rust。</li>
+    <li><strong>离线可用：</strong>零网络请求，零外链，零遥测；所有数据只落本机 SQLite 文件。</li>
+    <li><strong>数据不丢：</strong>所有写操作走 SQLite 事务；提供 JSON 全量导出/导入；清空需二次确认。</li>
+    <li><strong>领域与渲染分离：</strong>领域层不得引用 GPUI / DB 连接，只输入输出数据结构，保证可被 <code>cargo test</code> 独立覆盖。</li>
+    <li><strong>可配置边界：</strong>只做主题/配色，不做优先级命名、周起始日、快捷键的可配——避免滑向无限配置。</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="nt">GPUI 现状与风险（已更新）</span>
+    GPUI 自身仍标注 <b>pre-alpha</b>、API 无稳定性承诺、以 macOS 为核心平台（Windows 可用但更前沿）。但组件层生态已成熟：<b>gpui-component</b>（Longbridge 的 <code>gpui-kit</code> 一部分，60+ 桌面组件、已发 20+ 版本，v0.8.0 ≈ 2026-10）、另有 <b>adabraka-ui</b>（85+ 组件，shadcn/ui 风格）等可选。因此 <b>标准控件（按钮/输入框/取色器/表格/弹层…）不再自绘</b>，直接引组件库；<b>自绘只剩四类图表</b>。<br>
+    <b>应对</b>：① 用 <code>gpui-kit</code> 统一依赖，由它锁定匹配的 gpui 版本，不在 Cargo.toml 里浮动 <code>branch = "main"</code>；② 领域层零 GPUI 依赖，框架换或不换都不影响核心逻辑。
+  </div>
+</section>
+
+<!-- 02 -->
+<section id="t2">
+  <div class="sec-head"><span class="sec-num">02</span><h2>整体架构</h2><span class="tag">ARCHITECTURE</span></div>
+
+  <h3>分层（单向依赖）</h3>
+  <pre><code><span class="c">// 依赖方向：GPUI 事件 → Actions → domain（纯函数）+ storage → 视图重渲染</span>
+
+ <span class="at">┌──────────────────────────────────────────────────┐</span>
+ <span class="at">│</span> <span class="k">UI 层</span>      ui::{app,nav,alert,todos,notes,projects,weekly,charts}   <span class="at">│</span> GPUI 视图，读 AppState，只读不写
+ <span class="at">│</span>      ↓ 触发                                            <span class="at">│</span>
+ <span class="at">│</span> <span class="k">动作层</span>    actions.rs：改状态 → 持久化 → cx.notify()          <span class="at">│</span> 唯一写入口
+ <span class="at">│</span>      ↓ 读到 / 写入                                       <span class="at">│</span>
+ <span class="at">│</span> <span class="k">领域层</span>    domain::{todo,project,note,stats,date}            <span class="at">│</span> <span class="s">纯函数，无 GPUI / 无 DB</span>
+ <span class="at">│</span> <span class="k">存储层</span>    storage::{repo,schema,backup}（rusqlite）         <span class="at">│</span> SQLite 读写 + 迁移
+ <span class="at">└──────────────────────────────────────────────────┘</span>
+ <span class="at">                    ↑</span>
+ <span class="at">        settings::{theme}  配置层（TOML，颜色 token）</span></code></pre>
+
+  <h3>crate 结构（单二进制 crate）</h3>
+  <pre><code>office_desk/
+├── Cargo.toml
+├── config/
+│   └── default.toml              <span class="c">// 默认主题（浅色，取自设计令牌）</span>
+├── src/
+│   ├── main.rs                   <span class="c">// 加载配置 → 打开 SQLite → 启动 GPUI</span>
+│   ├── domain/
+│   │   ├── mod.rs
+│   │   ├── date.rs               <span class="c">// today / add_days / diff_days / start_of_week</span>
+│   │   ├── todo.rs               <span class="c">// bucket / overdue_days / rollover / sort / group</span>
+│   │   ├── project.rs            <span class="c">// progress / sync_status</span>
+│   │   ├── note.rs
+│   │   └── stats.rs              <span class="c">// week 统计（纯函数）</span>
+│   ├── storage/
+│   │   ├── mod.rs                <span class="c">// Connection 封装，WAL + foreign_keys</span>
+│   │   ├── schema.rs             <span class="c">// DDL + migration</span>
+│   │   ├── repo.rs               <span class="c">// todos/projects/notes/reviews/meta CRUD</span>
+│   │   └── backup.rs             <span class="c">// JSON 导出/导入（兼容 v0.1 网页导出的 JSON）</span>
+│   ├── settings/
+│   │   ├── mod.rs                <span class="c">// Settings / Theme 结构体 + 默认值</span>
+│   │   └── theme.rs              <span class="c">// 颜色 token → gpui 颜色解析</span>
+│   ├── actions.rs                <span class="c">// 约 26 个动作：改数据 + notify + 持久化</span>
+│   └── ui/
+│       ├── mod.rs                <span class="c">// Window / 根组件 / 路由切换</span>
+│       ├── nav.rs / alert.rs / todos.rs / notes.rs / projects.rs / weekly.rs
+│       ├── charts.rs             <span class="c">// 4 类图表 Element 绘制</span>
+│       └── widgets.rs            <span class="c">// 按钮/输入/标签/抽屉/toast/空状态</span>
+└── tests/
+    ├── domain.rs                 <span class="c">// 领域用例（口径回归）</span>
+    └── storage.rs                <span class="c">// 存储用例（临时 DB / 迁移）</span></code></pre>
+
+  <h3>状态模型</h3>
+  <pre><code><span class="k">struct</span> <span class="at">AppState</span> {
+    db:      Arc&lt;Mutex&lt;Connection&gt;&gt;,   <span class="c">// SQLite 连接（或经 repo 封装）</span>
+    data:    DataSnapshot,              <span class="c">// 内存镜像：todos/projects/notes/reviews/meta</span>
+    settings: Settings,                 <span class="c">// 含 Theme</span>
+    ui:      Ui,                        <span class="c">// view / note_tag / project_filter / weekly_start / editing / undo</span>
+}
+
+<span class="c">// 领域层返回纯数据，不持有 DB / GPUI 句柄</span>
+<span class="k">struct</span> <span class="at">Todo</span> { id, title, priority, date: <span class="n">Option</span>&lt;NaiveDate&gt;, original_date: <span class="n">Option</span>&lt;NaiveDate&gt;, project_id: <span class="n">Option</span>&lt;String&gt;, status, done_at: <span class="n">Option</span>&lt;NaiveDateTime&gt;, note, postpone_count, postpone_log, created_at }</pre>
+</section>
+
+<!-- 03 -->
+<section id="t3">
+  <div class="sec-head"><span class="sec-num">03</span><h2>数据层（SQLite）</h2><span class="tag">STORAGE</span></div>
+
+  <h3>连接与运行参数</h3>
+  <p>单连接、<code>Mutex</code> 保护（个人单窗口应用无需连接池），启动时执行 <code>PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;</code>。数据库文件与配置同目录：<code>%APPDATA%\office_desk\</code>。</p>
+
+  <h3>表结构（DDL）</h3>
+  <pre><code><span class="c">-- 1) 任务：status ∈ todo|done；priority ∈ 0..3（映射 P0..P3）</span>
+<span class="k">CREATE TABLE</span> todos (
+  id                <span class="k">TEXT PRIMARY KEY</span>,
+  title             <span class="k">TEXT NOT NULL</span>,
+  priority          <span class="k">INTEGER NOT NULL DEFAULT</span> <span class="n">1</span>,
+  date              <span class="k">TEXT</span>,                     <span class="c">-- YYYY-MM-DD，NULL=待安排</span>
+  original_date     <span class="k">TEXT</span>,                     <span class="c">-- 逾期判定依据，永不改</span>
+  project_id        <span class="k">TEXT REFERENCES</span> projects(id) <span class="k">ON DELETE SET NULL</span>,
+  status            <span class="k">TEXT NOT NULL DEFAULT</span> <span class="s">'todo'</span>,
+  done_at           <span class="k">TEXT</span>,
+  note              <span class="k">TEXT NOT NULL DEFAULT</span> <span class="s">''</span>,
+  postpone_count    <span class="k">INTEGER NOT NULL DEFAULT</span> <span class="n">0</span>,
+  created_at        <span class="k">TEXT NOT NULL</span>
+);
+
+<span class="c">-- 2) 顺延流水（原 JSON 数组拆成子表）</span>
+<span class="k">CREATE TABLE</span> postpone_log (
+  id         <span class="k">INTEGER PRIMARY KEY AUTOINCREMENT</span>,
+  todo_id    <span class="k">TEXT NOT NULL REFERENCES</span> todos(id) <span class="k">ON DELETE CASCADE</span>,
+  from_date  <span class="k">TEXT</span>, to_date <span class="k">TEXT</span>, at <span class="k">TEXT</span>, auto <span class="k">INTEGER</span>
+);
+
+<span class="c">-- 3) 项目：status ∈ active|blocked|done|paused</span>
+<span class="k">CREATE TABLE</span> projects (
+  id        <span class="k">TEXT PRIMARY KEY</span>,
+  name      <span class="k">TEXT NOT NULL</span>,
+  current   <span class="k">TEXT NOT NULL DEFAULT</span> <span class="s">''</span>,
+  next      <span class="k">TEXT NOT NULL DEFAULT</span> <span class="s">''</span>,
+  blocker   <span class="k">TEXT NOT NULL DEFAULT</span> <span class="s">''</span>,
+  status    <span class="k">TEXT NOT NULL DEFAULT</span> <span class="s">'active'</span>,
+  updated_at <span class="k">TEXT NOT NULL</span>
+);
+
+<span class="c">-- 4) 卡点流水（周复盘「卡点汇总」用）</span>
+<span class="k">CREATE TABLE</span> blocker_log (
+  id         <span class="k">INTEGER PRIMARY KEY AUTOINCREMENT</span>,
+  project_id <span class="k">TEXT NOT NULL REFERENCES</span> projects(id) <span class="k">ON DELETE CASCADE</span>,
+  text       <span class="k">TEXT</span>, start_at <span class="k">TEXT</span>, end_at <span class="k">TEXT</span>
+);
+
+<span class="c">-- 5) 灵感 / 周复盘 / 元数据</span>
+<span class="k">CREATE TABLE</span> notes (
+  id <span class="k">TEXT PRIMARY KEY</span>, content <span class="k">TEXT NOT NULL</span>,
+  tags <span class="k">TEXT NOT NULL DEFAULT</span> <span class="s">'[]'</span>,   <span class="c">-- JSON 数组</span>
+  pinned <span class="k">INTEGER NOT NULL DEFAULT</span> <span class="n">0</span>, created_at <span class="k">TEXT</span>, updated_at <span class="k">TEXT</span>
+);
+<span class="k">CREATE TABLE</span> weekly_reviews (
+  week_start <span class="k">TEXT PRIMARY KEY</span>, good <span class="k">TEXT</span>, watch <span class="k">TEXT</span>, focus <span class="k">TEXT</span>, updated_at <span class="k">TEXT</span>
+);
+<span class="k">CREATE TABLE</span> meta (
+  key <span class="k">TEXT PRIMARY KEY</span>, value <span class="k">TEXT</span>   <span class="c">-- schema_version / last_run_date / seeded_at</span>
+);</code></pre>
+
+  <div class="note">
+    <span class="nt">数组落库的两套做法，取后者</span>
+    <code>postpone_log</code> / <code>blocker_log</code> 原本是 JSON 数组，直接 <code>serde_json</code> 存 TEXT 也能跑，但无法用 SQL 过滤、迁移也麻烦。拆成子表 + 外键 <code>ON DELETE CASCADE</code>，删任务/删项目自动清流水，无孤儿数据。
+  </div>
+
+  <h3>内存镜像与读写</h3>
+  <p>启动时 <code>SELECT</code> 全量载入 <code>DataSnapshot</code>（个人数据量级下全量载入最省心），渲染只读快照；每次动作在事务里 <code>INSERT/UPDATE/DELETE</code> 后回写快照并 <code>cx.notify()</code>。周复盘四类统计一律由领域层从快照实时派生，<b>不落库</b>（与 v0.1 一致）。</p>
+
+  <h3>迁移</h3>
+  <pre><code><span class="k">const</span> MIGRATIONS: <span class="n">&amp;</span>[<span class="n">&amp;</span><span class="k">str</span>] = <span class="n">&amp;</span>[<span class="s">/* v1 = 上面的 DDL */</span>, <span class="s">/* v2 = 将来增量 ALTER ... */</span>];
+
+<span class="c">// 用 meta 里的 schema_version 记录当前版本，启动时按序执行高于当前版本的迁移</span>
+<span class="k">fn</span> <span class="k">migrate</span>(conn: <span class="n">&amp;</span><span class="k">Connection</span>) -&gt; <span class="k">Result</span>&lt;()&gt; {
+    <span class="k">let</span> v = get_meta(conn, <span class="s">"schema_version"</span>)?.unwrap_or(<span class="n">0</span>);
+    <span class="k">for</span> (i, sql) <span class="k">in</span> MIGRATIONS.iter().enumerate().skip(v <span class="k">as</span> <span class="k">usize</span>) {
+        conn.execute_batch(sql)?;
+        set_meta(conn, <span class="s">"schema_version"</span>, <span class="n">&amp;</span>(i + <span class="n">1</span>).to_string())?;
+    }
+    <span class="k">Ok</span>(())
+}</code></pre>
+
+  <h3>导出 / 导入</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>导出</h4>
+      <p class="mini" style="margin:0">生成 <code>office_desk_backup_YYYY-MM-DD.json</code>，结构 <code>{ app, version, exported_at, data }</code>，<code>data</code> 即四张表 + 流水的规范化 JSON；写到用户选择的位置（原生文件对话框，无网络）。</p>
+    </div>
+    <div class="card">
+      <h4>导入</h4>
+      <p class="mini" style="margin:0">读 JSON → 校验 <code>app</code> 标识与字段 → 弹摘要「将导入 N 任务 / M 项目 / K 灵感，覆盖当前数据」→ 确认后在<b>单事务</b>内清空并重灌。<b>兼容 v0.1 网页导出的 JSON</b>（<code>backup.rs</code> 做字段映射）。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 04 -->
+<section id="t4">
+  <div class="sec-head"><span class="sec-num">04</span><h2>领域逻辑层</h2><span class="tag">DOMAIN</span></div>
+  <p class="lead">本章口径与 v0.1 <b>逐条一致</b>，只是从 ES5 纯函数翻译成 Rust 纯函数。可用 <code>cargo test</code> 直接回归，不再靠肉眼比对页面数字。</p>
+
+  <h3>4.1 逾期判定（唯一口径）</h3>
+  <pre><code><span class="k">enum</span> <span class="at">Bucket</span> { Done, Overdue, Today, Future, Someday }
+
+<span class="k">fn</span> <span class="k">bucket</span>(t: <span class="n">&amp;</span><span class="at">Todo</span>, today: <span class="n">NaiveDate</span>) -&gt; <span class="at">Bucket</span> {
+    <span class="k">if</span> t.status == <span class="at">Status</span>::Done  { <span class="k">return</span> <span class="at">Bucket</span>::Done; }
+    <span class="k">let</span> <span class="at">Some</span>(date) = t.date <span class="k">else</span> { <span class="k">return</span> <span class="at">Bucket</span>::Someday; };
+    <span class="k">if</span> date &gt; today { <span class="k">return</span> <span class="at">Bucket</span>::Future; }
+    <span class="k">match</span> t.original_date {
+        <span class="at">Some</span>(od) <span class="k">if</span> od &lt; today =&gt; <span class="at">Bucket</span>::Overdue,
+        _ =&gt; <span class="at">Bucket</span>::Today,
+    }
+}
+
+<span class="k">fn</span> <span class="k">overdue_days</span>(t: <span class="n">&amp;</span><span class="at">Todo</span>, today: <span class="n">NaiveDate</span>) -&gt; <span class="k">i64</span> {
+    t.original_date.map(<span class="n">|od|</span> (today - od).num_days().max(<span class="n">0</span>)).unwrap_or(<span class="n">0</span>)
+}</code></pre>
+
+  <h3>4.2 自动顺延（Y2T）</h3>
+  <pre><code><span class="k">fn</span> <span class="k">run_auto_rollover</span>(s: <span class="n">&amp;</span><span class="k">mut</span> <span class="at">DataSnapshot</span>, today: <span class="n">NaiveDate</span>, now: <span class="n">NaiveDateTime</span>) -&gt; <span class="k">bool</span> {
+    <span class="k">if</span> s.meta.last_run_date == <span class="at">Some</span>(today) { <span class="k">return</span> <span class="k">false</span>; }
+    <span class="k">let</span> <span class="k">mut</span> changed = <span class="k">false</span>;
+    <span class="k">for</span> t <span class="k">in</span> s.todos.iter_mut().filter(<span class="n">|t|</span> t.status == <span class="at">Status</span>::Todo) {
+        <span class="k">if</span> <span class="k">let</span> <span class="at">Some</span>(d) = t.date { <span class="k">if</span> d &lt; today {
+            t.postpone_log.push(<span class="at">PostponeEvent</span> { from: <span class="at">Some</span>(d), to: today, at: now, auto: <span class="k">true</span> });
+            t.postpone_count += <span class="n">1</span>;
+            t.date = <span class="at">Some</span>(today);          <span class="c">// original_date 不变 → 仍标红</span>
+            changed = <span class="k">true</span>;
+        }}
+    }
+    s.meta.last_run_date = <span class="at">Some</span>(today);
+    changed                                    <span class="c">// true 时执行一次 save()</span>
+}</code></pre>
+  <div class="note">
+    <span class="nt">隔 N 天不打开</span>
+    「原定 10/10，10/15 打开」只记一次顺延（from 10/10 → to 今天），逾期天数用 <code>today - original_date</code> 表达。语义与 v0.1 完全一致。
+  </div>
+
+  <h3>4.3 排序与分组</h3>
+  <pre><code><span class="c">// 排序权重：逾期优先 → 优先级 → 原定日期更早 → 创建更早</span>
+<span class="k">fn</span> <span class="k">sort_for_today</span>(list: <span class="n">&amp;</span><span class="k">mut</span> [<span class="at">Todo</span>], today: <span class="n">NaiveDate</span>) {
+    list.sort_by(<span class="n">|a, b|</span> {
+        (bucket(a, today) == <span class="at">Bucket</span>::Overdue <span class="k">as</span> <span class="k">u8</span>)
+            .cmp(<span class="n">&amp;</span>(bucket(b, today) == <span class="at">Bucket</span>::Overdue <span class="k">as</span> <span class="k">u8</span>))   <span class="c">// overdues 在前</span>
+            .then_with(<span class="n">||</span> a.priority.cmp(<span class="n">&amp;</span>b.priority))
+            .then_with(<span class="n">||</span> a.original_date.cmp(<span class="n">&amp;</span>b.original_date))
+            .then_with(<span class="n">||</span> a.created_at.cmp(<span class="n">&amp;</span>b.created_at))
+    });
+}
+
+<span class="c">// 未来任务按 date 分组；None（无日期）排最后</span>
+<span class="k">fn</span> <span class="k">group_future</span>(list: <span class="n">&amp;</span>[<span class="at">Todo</span>]) -&gt; <span class="k">Vec</span>&lt;(<span class="n">Option</span>&lt;NaiveDate&gt;, <span class="k">Vec</span>&lt;<span class="n">&amp;</span><span class="at">Todo</span>&gt;)&gt; { <span class="c">/* ... */</span> }</code></pre>
+
+  <h3>4.4 项目进度与状态</h3>
+  <pre><code><span class="k">struct</span> <span class="at">Progress</span> { total: <span class="k">usize</span>, done: <span class="k">usize</span>, overdue: <span class="k">usize</span>, rate: <span class="n">Option</span>&lt;<span class="k">f64</span>&gt; }
+
+<span class="k">fn</span> <span class="k">progress</span>(p: <span class="n">&amp;</span><span class="at">Project</span>, todos: <span class="n">&amp;</span>[<span class="at">Todo</span>], today: <span class="n">NaiveDate</span>) -&gt; <span class="at">Progress</span> {
+    <span class="k">let</span> rel: <span class="k">Vec</span>&lt;_&gt; = todos.iter().filter(<span class="n">|t|</span> t.project_id.as_deref() == <span class="at">Some</span>(p.id.as_str())).collect();
+    <span class="k">let</span> done = rel.iter().filter(<span class="n">|t|</span> t.status == <span class="at">Status</span>::Done).count();
+    <span class="k">let</span> overdue = rel.iter().filter(<span class="n">|t|</span> bucket(t, today) == <span class="at">Bucket</span>::Overdue).count();
+    <span class="at">Progress</span> { total: rel.len(), done, overdue,
+              rate: (rel.len() &gt; <span class="n">0</span>).then(<span class="n">||</span> done <span class="k">as</span> <span class="k">f64</span> / rel.len() <span class="k">as</span> <span class="k">f64</span>) }
+}
+
+<span class="c">// 状态由卡点驱动，不允许手动设 blocked</span>
+<span class="k">fn</span> <span class="k">sync_status</span>(p: <span class="n">&amp;</span><span class="at">Project</span>) -&gt; <span class="at">Status</span> {
+    <span class="k">match</span> p.status { <span class="at">Status</span>::Done | <span class="at">Status</span>::Paused =&gt; p.status,
+        _ =&gt; <span class="k">if</span> !p.blocker.trim().is_empty() { <span class="at">Status</span>::Blocked } <span class="k">else</span> { <span class="at">Status</span>::Active } }
+}</code></pre>
+
+  <h3>4.5 周复盘口径</h3>
+  <p class="mini">同 v0.1：本周完成 / 完成率（分母 = 本周到期 ∪ 本周完成）/ 优先级分布 / 精力分布 / 一周节奏 / 顺延事件（按 <code>postpone_log.at</code> 计数）/ 卡点汇总（取 <code>blocker_log</code> 与本周交集）。全部由 <code>stats.rs</code> 纯函数实现，用 v0.1 的种子数据做回归断言：</p>
+  <pre><code><span class="k">let</span> w = stats::week(<span class="n">&amp;</span>seed, <span class="k">NaiveDate</span>::from(seed_week_start));
+assert_eq!(w.done_count, <span class="n">11</span>);
+assert_eq!(<span class="n">round</span>(w.done_rate * <span class="n">100.0</span>), <span class="n">85</span>);   <span class="c">// 11/13 = 84.6%</span></code></pre>
+</section>
+
+<!-- 05 -->
+<section id="t5">
+  <div class="sec-head"><span class="sec-num">05</span><h2>渲染层（GPUI）</h2><span class="tag">RENDER</span></div>
+
+  <h3>窗口与根组件</h3>
+  <pre><code><span class="c">// main.rs：加载配置 → 打开 DB → 跑迁移/种子 → 启动 GPUI</span>
+gpui::<span class="at">Application</span>::new().run(<span class="n">move |</span>cx| {
+    <span class="k">let</span> state = cx.new_model(<span class="n">|_|</span> <span class="at">AppState</span>::init(config, db));
+    cx.activate_window(cx.open_window(<span class="at">WindowOptions</span>::default(), <span class="n">|cx|</span> {
+        cx.new_view(<span class="n">|cx|</span> <span class="at">Root</span>::new(state.clone(), cx))
+    })<span class="k">?)</span>;
+})<span class="k">?</span>;</code></pre>
+
+  <p>根组件渲染左导航（252px）+ 内容区；置顶区（今天要处理的）常驻在内容区顶部，四个视图容器随 <code>ui.view</code> 切换显隐。GPUI 是<b>保留模式</b>：视图只读 <code>AppState</code>，不手工拼 DOM。</p>
+
+  <h3>刷新机制（替代 v0.1 的 refreshAll）</h3>
+  <p>v0.1 靠「全量重建 innerHTML + 事件委托」规避刷新；GPUI 下这条手工纪律退化为框架能力——动作层改完 <code>AppState</code> 后调用一次 <code>cx.notify()</code>，绑定到该 Model 的视图自动重渲染。两条红线仍保留：</p>
+  <ul>
+    <li><strong>视图不写状态：</strong>视图函数只读 <code>state</code>，产出元素树，不直接改数据、不碰 DB。</li>
+    <li><strong>动作是唯一写入口：</strong>所有改动经 <code>actions.rs</code>，统一「改快照 → 事务落库 → <code>cx.notify()</code>」。</li>
+  </ul>
+  <div class="note danger">
+    <span class="nt">GPUI 下的焦点与滚动</span>
+    保留模式下 GPUI 自行管理节点复用与焦点，<b>不存在</b> v0.1 担心的「全量重渲染丢焦点/跳滚动」问题；行内编辑切换输入框时由 <code>ui.editing</code> 控制焦点，不必再手工恢复。
+  </div>
+
+  <h3>视图骨架</h3>
+  <pre><code><span class="k">impl</span> <span class="at">Root</span> {
+    <span class="k">fn</span> <span class="k">render</span>(...) {
+        h_flex().size_full()
+            .child(<span class="at">Nav</span>::new(state, cx))          <span class="c">// 左侧 4 模块 + 设置入口</span>
+            .child(v_flex().flex_1()
+                .child(<span class="at">Alert</span>::new(state, cx))      <span class="c">// 置顶区，跨视图</span>
+                .child(<span class="k">match</span> state.read(cx).ui.view {
+                    <span class="at">View</span>::Todos    =&gt; <span class="at">Todos</span>::new(state, cx),
+                    <span class="at">View</span>::Notes    =&gt; <span class="at">Notes</span>::new(state, cx),
+                    <span class="at">View</span>::Projects =&gt; <span class="at">Projects</span>::new(state, cx),
+                    <span class="at">View</span>::Weekly   =&gt; <span class="at">Weekly</span>::new(state, cx),
+                }))
+    }
+}</code></pre>
+  <p class="mini">设置页（主题/配色）作为第五个入口收进导航底部，或做成抽屉，不占四个业务模块的导航位。</p>
+</section>
+
+<!-- 06 -->
+<section id="t6">
+  <div class="sec-head"><span class="sec-num">06</span><h2>可视化实现</h2><span class="tag">CHARTS</span></div>
+  <p class="lead">标准控件（按钮/输入框/表格/抽屉/弹层）直接用 <code>gpui-component</code>；<b>只有四类图表</b>需要自绘——实现 GPUI 自定义元素，在其 <code>paint</code> 回调里用画布原语绘制；颜色全部取自当前 <code>Theme</code>，随主题切换即时刷新。</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:160px">图表</th><th>绘制方式</th></tr></thead>
+      <tbody>
+        <tr><td>优先级分布 · 横条</td><td>4 条 <code>rect</code>，条长 = <code>value/max * 可用宽</code>（max 取四项最大，非总数）；有值至少 6px；条尾 <code>text</code> 数值</td></tr>
+        <tr><td>精力分布 · 环形</td><td>用弧段 <code>path.arc()</code> 分段填充，起止角按累计比例；100% 时整圆闭合（不出现缺口）；中心文本为完成总数</td></tr>
+        <tr><td>一周节奏 · 柱状</td><td>7 根柱，高度 = <code>value/max * H</code>；无数据日画 2px 基线；今天高亮（主题强调色）</td></tr>
+        <tr><td>进度条 / 计数条</td><td>不画布，用 GPUI 布局：外层 <code>overflow-hidden</code> + 内层按百分比定宽，配 <code>transition</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>环形图示意（自定义 Element 的 paint）</h3>
+  <pre><code><span class="k">impl</span> <span class="at">Element</span> <span class="k">for</span> <span class="at">DonutChart</span> {
+    <span class="k">fn</span> <span class="k">paint</span>(<span class="n">&amp;</span><span class="k">mut</span> <span class="k">self</span>, bounds: <span class="at">Bounds</span>&lt;<span class="at">Pixels</span>&gt;, cx: <span class="n">&amp;</span><span class="k">mut</span> <span class="at">Window</span>) {
+        <span class="k">let</span> theme = <span class="n">&amp;</span>*cx.theme(); <span class="c">// 当前主题颜色</span>
+        <span class="k">let</span> (cx0, cy0) = bounds.center();
+        <span class="k">let</span> r = bounds.size.width.min(bounds.size.height) / <span class="n">2.0</span> - <span class="n">STROKE</span>/<span class="n">2.0</span>;
+        <span class="k">let</span> total: <span class="k">f64</span> = self.data.iter().map(<span class="n">|d|</span> d.value).sum();
+        <span class="k">let</span> <span class="k">mut</span> acc = <span class="n">-90.0</span>;                 <span class="c">// 从 12 点方向</span>
+        <span class="k">for</span> d <span class="k">in</span> <span class="n">&amp;</span>self.data {
+            <span class="k">let</span> sweep = d.value / total * <span class="n">360.0</span>;
+            cx.paint_path(<span class="at">Path</span>::arc((cx0, cy0), r, acc, acc + sweep)
+                .stroke(d.color, <span class="at">StrokeWidth</span>(<span class="at">STROKE</span>)));
+            acc += sweep;
+        }
+    }
+}</code></pre>
+  <div class="note">
+    <span class="nt">数值文字仍是文本</span>
+    图表下方保留一张可读的数值列表（与 v0.1 无障碍规范一致），不单靠颜色/图形传达信息；圈心「本周完成 N」用 <code>text</code> 绘制。
+  </div>
+</section>
+
+<!-- 07 -->
+<section id="t7">
+  <div class="sec-head"><span class="sec-num">07</span><h2>交互与事件</h2><span class="tag">EVENTS</span></div>
+
+  <h3>动作层（约 26 个方法）</h3>
+  <p>每个动作统一形态：<code>改快照 → 事务落库 → cx.notify()</code>；需要反馈的再补 toast / 撤销栈。</p>
+  <pre><code><span class="k">impl</span> <span class="at">AppState</span> {
+    <span class="k">fn</span> <span class="k">toggle_todo</span>(...) {
+        <span class="c">// 改快照 …</span>
+        self.repo.save(<span class="n">&amp;</span>self.data)<span class="k">?</span>;     <span class="c">// 单事务</span>
+        cx.notify();
+    }
+}</code></pre>
+
+  <h3>核心动作对照（与 v0.1 同语义）</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:170px">动作</th><th>实现要点</th></tr></thead>
+      <tbody>
+        <tr><td><code>add_todo_quick</code></td><td>trim 非空才建；默认 P1 / 今天 / 无项目</td></tr>
+        <tr><td><code>toggle_todo</code></td><td>done → 写 <code>done_at</code>；撤销 → 清空</td></tr>
+        <tr><td><code>postpone_one</code></td><td>date = 明天；toast「已顺延（第 N 次）」可撤销</td></tr>
+        <tr><td><code>postpone_all_overdue</code></td><td>确认弹窗列出任务名与件数后批量改</td></tr>
+        <tr><td><code>set_blocker</code></td><td>写/清卡点，同时维护 <code>blocker_log</code> 区间</td></tr>
+        <tr><td><code>note_to_todo</code></td><td>正文→标题，打开待办表单预填，不删原灵感</td></tr>
+        <tr><td><code>switch_week</code></td><td>只改 <code>ui.weekly_start</code>，不碰数据</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>撤销（Undo）</h3>
+  <p>完成 / 顺延 / 删除提供 5 秒撤销。存前后<b>快照</b>而非逆向操作（撤销删除需还原 id 与顺序）。</p>
+  <pre><code><span class="k">struct</span> <span class="at">Undo</span> { kind, snapshot: <span class="at">DataSnapshot</span>, expires: <span class="n">Instant</span> }   <span class="c">// ui.undo: Option&lt;Undo&gt;</span></code></pre>
+
+  <h3>键盘快捷键（桌面，本期固定不可配）</h3>
+  <ul>
+    <li><code>N</code> 新建当前视图主对象 · <code>/</code> 聚焦快速输入 · <code>Esc</code> 关弹层 · <code>1–4</code> 切模块 · <code>Ctrl/⌘+Enter</code> 保存灵感</li>
+    <li>输入框聚焦时不触发单键快捷键。</li>
+  </ul>
+</section>
+
+<!-- 08 -->
+<section id="t8">
+  <div class="sec-head"><span class="sec-num">08</span><h2>主题与配置</h2><span class="tag">SETTINGS</span></div>
+
+  <h3>配置范围（本期唯一开放项）</h3>
+  <p>依据产品决定，<b>只开放主题 / 配色</b>。优先级命名（四档）、周起始日（周一）、快捷键保持默认，不做配置项。</p>
+
+  <h3>配置载体</h3>
+  <pre><code><span class="c"># %APPDATA%\office_desk\config.toml（首次运行自动生成，含全部注释与默认值）</span>
+[theme]
+mode = <span class="s">"light"</span>            <span class="c"># light | dark | custom</span>
+
+[theme.colors]                 <span class="c"># 覆盖浅色下的 token；custom 时整体接管</span>
+paper    = <span class="s">"#FFFFFF"</span>
+ink      = <span class="s">"#152420"</span>
+teal     = <span class="s">"#0F766E"</span>
+teal_2   = <span class="s">"#0D9488"</span>
+blue     = <span class="s">"#1E5F8A"</span>
+red      = <span class="s">"#C0392B"</span>
+amber    = <span class="s">"#A86413"</span>
+
+[theme.colors.priority]        <span class="c"># 四档色序</span>
+p0 = <span class="s">"#C0392B"</span>; p1 = <span class="s">"#E08E3C"</span>; p2 = <span class="s">"#0D9488"</span>; p3 = <span class="s">"#9AADAA"</span>
+
+[theme.colors.project]         <span class="c"># 项目/精力图固定色序（去重后前 5）</span>
+1 = <span class="s">"#0F766E"</span>; 2 = <span class="s">"#1E5F8A"</span>; 3 = <span class="s">"#5FA8A0"</span>; 4 = <span class="s">"#8AA9C4"</span>; 5 = <span class="s">"#C7D6D3"</span></code></pre>
+
+  <h3>应用内设置页与热重载</h3>
+  <ul>
+    <li><strong>设置页</strong>：导航底部入口，浅色/深色/自定义三选 + 色板（每个 token 一个取色器，用 <code>gpui-component</code> 的 color picker）。</li>
+    <li><strong>实时预览</strong>：改色即时写入 <code>Settings</code> 并 <code>cx.set_global(theme)</code> + <code>cx.refresh()</code>，全窗口立刻换色。</li>
+    <li><strong>持久化</strong>：确认后写回 <code>config.toml</code>（保留注释与未改项）；默认色与用户色分离，用户色只存「相对覆盖」。</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="nt">浅色 / 深色两套，不做"任意主题市场"</span>
+    深色不是简单反色，背景/纸/描边/浅底需成组调整以保证对比度；先把 light/dark 两套默认打磨好，custom 仅作为进阶覆盖。避免一开始就做完整主题系统导致范围失控。
+  </div>
+</section>
+
+<!-- 09 -->
+<section id="t9">
+  <div class="sec-head"><span class="sec-num">09</span><h2>安全与数据完整性</h2><span class="tag">SAFETY</span></div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:170px">风险</th><th>处理</th></tr></thead>
+      <tbody>
+        <tr><td>写失败 / 半写崩溃</td><td>所有多表写操作包单事务；WAL 模式降低损坏概率</td></tr>
+        <tr><td>DB 文件损坏</td><td>启动时 <code>PRAGMA integrity_check</code>；异常先备份原文件再重建，顶部提示</td></tr>
+        <tr><td>首次打开</td><td><code>meta.seeded_at</code> 为空 → 写入种子数据并标记</td></tr>
+        <tr><td>孤儿引用</td><td>外键 <code>ON DELETE SET NULL/CASCADE</code> 由 DB 兜底；启动再跑一次 <code>repair()</code> 清理</td></tr>
+        <tr><td>重复 id</td><td>id 生成「时间戳 base36 + 随机 4 位」；导入时检测冲突重编</td></tr>
+        <tr><td>SQL 注入</td><td>全部参数化查询（<code>rusqlite</code> 绑定参数），不拼 SQL 字符串</td></tr>
+        <tr><td>隐私</td><td>只落本机文件，零网络零遥测；不宣称加密（SQLite 明文，仅个人工具便利性存储）</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 10 -->
+<section id="t10">
+  <div class="sec-head"><span class="sec-num">10</span><h2>构建与自检</h2><span class="tag">BUILD &amp; TEST</span></div>
+
+  <h3>工具链前置</h3>
+  <ul>
+    <li>最新 stable Rust（GPUI 跟随较新的 toolchain）；Windows 需 <b>MSVC Build Tools</b>（<code>bundled</code> 走 cc 编译 SQLite）。</li>
+    <li><code>cargo build --release</code> → <code>target/release/office_desk.exe</code>；<code>cargo test</code> 跑领域 + 存储用例。</li>
+  </ul>
+
+  <h3>施工顺序（增量可运行）</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:56px">步骤</th><th style="width:210px">产出</th><th>验收</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>crate 骨架 + <code>domain::*</code> + <code>date</code></td><td><code>cargo test</code> 过 v0.1 口径用例</td></tr>
+        <tr><td>2</td><td><code>storage::schema/repo/backup</code></td><td>建库、迁移、CRUD、JSON 导入导出</td></tr>
+        <tr><td>3</td><td>GPUI 窗口 + 根组件 + 导航 + 置顶区</td><td>能启动、切视图</td></tr>
+        <tr><td>4</td><td>待办 / 项目 / 灵感视图 + 动作层</td><td>增删改查、顺延、标红、进度</td></tr>
+        <tr><td>5</td><td>周复盘 + 四类图表</td><td>数值与列表一致</td></tr>
+        <tr><td>6</td><td>主题/配色设置页 + 热重载</td><td>换色即时生效、落盘</td></tr>
+        <tr><td>7</td><td>undo / toast / 抽屉 / 导入导出 / 种子</td><td>全流程走通</td></tr>
+        <tr><td>8</td><td>边界用例回归（沿用 v0.1 的 15 条）</td><td>逐条通过</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>种子数据（口径回归基准）</h3>
+  <p class="mini">沿用 v0.1 种子：3 项目、18 任务（11 本周完成 / 2 逾期 / 3 未来 / 1 无日期）、6 灵感。预期值不变：<b>本周完成 11 · 完成率 84.6% · 逾期 2 · 卡住 1</b>。</p>
+</section>
+
+<!-- 11 -->
+<section id="t11">
+  <div class="sec-head"><span class="sec-num">11</span><h2>交付物与排期</h2><span class="tag">DELIVERY</span></div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h4>主交付</h4>
+      <p class="mini" style="margin:0"><code>office_desk.exe</code>（release 构建）<br>数据库 <code>%APPDATA%\office_desk\office_desk.db</code><br>配置 <code>%APPDATA%\office_desk\config.toml</code></p>
+    </div>
+    <div class="card">
+      <h4>可选</h4>
+      <p class="mini" style="margin:0">从 v0.1 网页导出的 JSON 一键迁移进 SQLite；以及内置轻量安装脚本（建快捷方式）。</p>
+    </div>
+  </div>
+
+  <h3>主要风险点</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:220px">环节</th><th>风险</th></tr></thead>
+      <tbody>
+        <tr><td>GPUI 依赖</td><td>GPUI 本身 pre-alpha、Windows 前沿；<b>但用 <code>gpui-kit</code> 锁定匹配版本 + 组件库，风险已降</b></td></tr>
+        <tr><td>四类图表绘制</td><td>无 SVG，需手写 paint → 工作量比 v0.1 大，属中风险</td></tr>
+        <tr><td>领域口径移植</td><td>已锁定、纯函数可单测，风险最低</td></tr>
+        <tr><td>主题系统范围</td><td>易失控 → 先 light/dark 两套，custom 仅覆盖色值</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>开工前确认</h3>
+  <div class="note warn">
+    <span class="nt">两点，不影响架构</span>
+    <ul style="margin:6px 0 0">
+      <li><strong>示例项目名：</strong>沿用「Q3 增长方案 / 首页改版 / 个人博客迁移」，有真实项目名就替换。</li>
+      <li><strong>是否同时做深色主题第一版：</strong>默认 light 先行，dark 作为设置页里的第二套预设一起交付还是后置？</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <span>办公工作台 · 技术方案 v0.2（Rust / GPUI / SQLite）</span>
+    <span>依据产品设计说明 v0.1 · 确认后进入施工</span>
+  </div>
+</section>
+
+</main>
+</div>
+
+<a href="#" class="totop" aria-label="回到顶部">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+</a>
+
+<script>
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  function onScroll(){
+    var y = window.scrollY + 120, idx = 0;
+    for (var i = 0; i < secs.length; i++){ if (secs[i] && secs[i].offsetTop <= y) idx = i; }
+    links.forEach(function(a, i){ a.classList.toggle('active', i === idx); });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+</script>
+</body>
+</html>

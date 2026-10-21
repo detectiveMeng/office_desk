@@ -1,0 +1,32 @@
+[package]
+name = "office_desk"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+description = "办公工作台 —— 原生办公桌面应用（Rust + GPUI + SQLite）"
+default-run = "office_desk"
+
+[[bin]]
+name = "office_desk"
+path = "src/main.rs"
+
+[dependencies]
+# 领域层
+office_desk_core = { path = "../core" }
+
+# UI：GPUI Kit —— 单一依赖，重导出 GPUI（gpui_kit::*）+ 组件库（gpui_kit::component）+ 图标资源
+gpui-kit = "0.7.3"
+
+# 存储：SQLite，bundled 把 sqlite 编译进二进制，避免 Windows 上散落 DLL
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# 日期：NaiveDate / NaiveDateTime（含 serde 用于序列化）
+chrono = { version = "0.4", features = ["serde"] }
+
+# 序列化与配置
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# 错误处理
+anyhow = "1"

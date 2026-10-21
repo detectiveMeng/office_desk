@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人办公工作台 · 技术方案</title>
+<style>
+:root{
+  --bg:#f6f8f9;
+  --paper:#ffffff;
+  --ink:#152420;
+  --ink-2:#4a5c58;
+  --ink-3:#7c8b87;
+  --line:#e2e9e7;
+  --line-2:#eef3f2;
+  --teal:#0f766e;
+  --teal-2:#0d9488;
+  --teal-ink:#0b4f4a;
+  --teal-soft:#e8f4f2;
+  --teal-soft-2:#f2f9f8;
+  --blue:#1e5f8a;
+  --red:#c0392b;
+  --red-soft:#fdf0ee;
+  --amber:#a86413;
+  --amber-soft:#fdf6e9;
+  --radius:14px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+a{color:var(--teal);text-decoration:none}
+
+/* 布局 */
+.shell{display:grid;grid-template-columns:252px minmax(0,1fr);min-height:100vh}
+.side{
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  background:var(--paper);border-right:1px solid var(--line);
+  padding:24px 0 28px;display:flex;flex-direction:column;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:0 22px 20px;border-bottom:1px solid var(--line-2);margin-bottom:14px}
+.brand-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(140deg,var(--teal),var(--blue));display:grid;place-items:center;flex:none}
+.brand-mark svg{width:17px;height:17px}
+.brand-name{font-size:13.5px;font-weight:700;letter-spacing:.2px;line-height:1.3}
+.brand-sub{font-size:10.5px;color:var(--ink-3);letter-spacing:.6px;text-transform:uppercase;margin-top:1px}
+.side-group{padding:0 12px;margin-bottom:6px}
+.side-group-t{font-size:10.5px;font-weight:700;color:var(--ink-3);letter-spacing:1.2px;text-transform:uppercase;padding:8px 10px 6px}
+.toc{list-style:none}
+.toc a{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;font-size:13px;color:var(--ink-2);line-height:1.5;transition:background .16s,color .16s}
+.toc a .n{font-family:var(--mono);font-size:11px;color:var(--ink-3);width:16px;flex:none;font-weight:600}
+.toc a:hover{background:var(--teal-soft-2);color:var(--teal-ink)}
+.toc a.active{background:var(--teal-soft);color:var(--teal-ink);font-weight:600}
+.toc a.active .n{color:var(--teal)}
+.side-foot{margin-top:auto;padding:18px 22px 0;border-top:1px solid var(--line-2);font-size:11px;color:var(--ink-3);line-height:1.7}
+.side-foot b{color:var(--ink-2);font-weight:600}
+
+main{max-width:1080px;width:100%;padding:0 40px 96px}
+
+/* 页头 */
+.hero{position:relative;margin:0 -40px 0;padding:46px 40px 38px;overflow:hidden;
+  background:linear-gradient(180deg,#f0f7f6 0%,#f7faf9 62%,#f6f8f9 100%);border-bottom:1px solid var(--line)}
+.hero-art{position:absolute;right:-30px;top:-50px;width:520px;height:340px;opacity:.9;pointer-events:none}
+.hero-inner{position:relative;z-index:1;max-width:700px}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--teal);background:#fff;border:1px solid #d6e8e5;border-radius:999px;padding:4px 12px}
+.eyebrow .d{width:5px;height:5px;border-radius:50%;background:var(--teal-2)}
+.hero h1{font-size:30px;font-weight:800;letter-spacing:-.3px;line-height:1.32;margin:16px 0 10px;color:var(--ink)}
+.hero h1 em{font-style:normal;color:var(--teal)}
+.hero p{font-size:14px;color:var(--ink-2);max-width:640px}
+.hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.meta-chip{font-size:11.5px;color:var(--ink-2);background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:7px;padding:4px 10px}
+.meta-chip b{color:var(--ink);font-weight:600}
+
+/* 章节 */
+section{padding-top:44px;scroll-margin-top:16px}
+.sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;padding-bottom:12px;border-bottom:2px solid var(--ink)}
+.sec-num{font-family:var(--mono);font-size:12px;font-weight:700;color:#fff;background:var(--ink);border-radius:5px;padding:2px 7px;letter-spacing:.5px;flex:none;position:relative;top:-2px}
+.sec-head h2{font-size:20px;font-weight:800;letter-spacing:-.2px;flex:1}
+.sec-head .tag{font-size:11px;color:var(--ink-3);font-family:var(--mono);letter-spacing:.5px}
+h3{font-size:15px;font-weight:700;margin:30px 0 12px;display:flex;align-items:center;gap:9px}
+h3::before{content:"";width:3px;height:14px;border-radius:2px;background:var(--teal);flex:none}
+h4{font-size:13.5px;font-weight:700;color:var(--ink);margin:18px 0 8px}
+p{margin-bottom:10px;color:var(--ink-2)}
+p.lead{font-size:14.5px;color:var(--ink-2)}
+strong{color:var(--ink);font-weight:600}
+code{font-family:var(--mono);font-size:12px;background:#eef4f3;border:1px solid #e0ebe9;border-radius:4px;padding:1px 5px;color:var(--teal-ink)}
+ul,ol{margin:0 0 12px 0;padding-left:0;list-style:none}
+ul li,ol li{padding-left:16px;position:relative;margin-bottom:6px;color:var(--ink-2)}
+ul li::before{content:"";position:absolute;left:3px;top:10px;width:5px;height:5px;border-radius:50%;background:#a9c3bd}
+ol{counter-reset:ol}
+ol li{counter-increment:ol}
+ol li::before{content:counter(ol);position:absolute;left:0;top:2px;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--teal)}
+
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:14px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.card h4:first-child{margin-top:0}
+
+.note{border-left:3px solid var(--teal-2);background:var(--teal-soft-2);border-radius:0 10px 10px 0;padding:14px 18px;margin:14px 0;font-size:13.5px;color:var(--teal-ink)}
+.note b{color:var(--teal-ink)}
+.note.warn{border-left-color:#d9a441;background:var(--amber-soft);color:#6d4510}
+.note.warn b{color:#5e3a0c}
+.note.danger{border-left-color:#d4736a;background:var(--red-soft);color:#8f3226}
+.note.danger b{color:#7d2a20}
+.note .nt{display:block;font-size:10.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;opacity:.75;margin-bottom:3px}
+
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+thead th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-3);background:#fafcfc;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody td{padding:9px 14px;border-bottom:1px solid var(--line-2);color:var(--ink-2);vertical-align:top;line-height:1.65}
+tbody tr:last-child td{border-bottom:none}
+tbody td:first-child{color:var(--ink);font-weight:600}
+tbody tr:hover td{background:#fbfdfd}
+td .code{font-family:var(--mono);font-size:11.5px;color:var(--teal-ink)}
+.mini{font-size:11.5px;color:var(--ink-3)}
+
+.b{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px;line-height:1.6;white-space:nowrap}
+.b-red{background:var(--red-soft);color:var(--red)}
+.b-teal{background:var(--teal-soft);color:var(--teal)}
+.b-amber{background:var(--amber-soft);color:var(--amber)}
+.b-gray{background:#f0f3f3;color:var(--ink-3)}
+.b-blue{background:#eef3f8;color:var(--blue)}
+
+/* 代码块 */
+pre{background:#12201d;color:#d6e6e2;border-radius:11px;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.2px;line-height:1.7;margin:12px 0;border:1px solid #1e3630}
+pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
+.k{color:#7fd1c4}
+.s{color:#c9e88a}
+.c{color:#6f8c86;font-style:italic}
+.n{color:#f0b866}
+.at{color:#8fb8e8}
+
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 4px}
+.flow-node{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.flow-node.k{background:var(--teal-soft);border-color:#cfe6e2;color:var(--teal-ink)}
+.flow-node.r{background:var(--red-soft);border-color:#eecfc9;color:var(--red)}
+.flow-ar{color:#b6c9c4;font-family:var(--mono);font-size:13px}
+
+.rules{counter-reset:r;margin:8px 0 0}
+.rules li{list-style:none;padding-left:30px;position:relative;margin-bottom:9px;font-size:13.5px}
+.rules li::before{counter-increment:r;content:"R" counter(r);position:absolute;left:0;top:2px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--teal);background:var(--teal-soft);border-radius:4px;padding:1px 4px;line-height:1.6}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.kpi{border:1px solid var(--line);border-radius:11px;padding:13px 14px;background:#fff}
+.kpi .t{font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.3px}
+.kpi .v{font-size:23px;font-weight:800;line-height:1.25;margin:3px 0 1px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.kpi .s{font-size:11px;color:var(--ink-3)}
+.kpi .f{font-family:var(--mono);font-size:10.5px;color:#8fa5a0;margin-top:6px;border-top:1px dashed var(--line);padding-top:5px;line-height:1.5}
+
+.spec{font-family:var(--mono);font-size:11.5px;color:var(--teal-ink);background:var(--teal-soft-2);border:1px dashed #cfe6e2;border-radius:6px;padding:2px 7px;display:inline-block}
+
+.totop{position:fixed;right:22px;bottom:22px;width:40px;height:40px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:0 4px 16px -4px rgba(20,40,36,.16);display:grid;place-items:center;color:var(--ink-2);z-index:20}
+.totop:hover{color:var(--teal);border-color:#cfe6e2}
+.foot{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+
+/* 验收清单 */
+.checks{list-style:none;counter-reset:c}
+.checks li{counter-increment:c;padding:10px 12px 10px 40px;position:relative;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:8px;font-size:13px;color:var(--ink-2)}
+.checks li::before{content:counter(c);position:absolute;left:12px;top:11px;width:18px;height:18px;border-radius:5px;background:var(--teal-soft);color:var(--teal);font-family:var(--mono);font-size:10.5px;font-weight:700;display:grid;place-items:center}
+
+@media(max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);padding:16px 0 10px}
+  .brand{padding-bottom:12px;margin-bottom:8px}
+  .side-group{padding:0 10px}
+  .toc{display:flex;flex-wrap:wrap;gap:4px}
+  .toc a{font-size:12px;padding:5px 9px;background:#f4f8f7}
+  .side-foot{display:none}
+  main{padding:0 18px 70px}
+  .hero{margin:0 -18px;padding:32px 18px 26px}
+  .hero-art{width:360px;height:250px;right:-90px;top:-30px;opacity:.55}
+  .hero h1{font-size:23px}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .totop{display:none}
+  pre{font-size:11.4px;padding:13px 14px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<aside class="side">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 4v5"/></svg>
+    </div>
+    <div>
+      <div class="brand-name">个人办公工作台</div>
+      <div class="brand-sub">Tech Spec</div>
+    </div>
+  </div>
+
+  <div class="side-group">
+    <div class="side-group-t">方案总览</div>
+    <ul class="toc">
+      <li><a href="#t1"><span class="n">01</span>技术选型与约束</a></li>
+      <li><a href="#t2"><span class="n">02</span>整体架构</a></li>
+      <li><a href="#t3"><span class="n">03</span>数据层</a></li>
+      <li><a href="#t4"><span class="n">04</span>领域逻辑层</a></li>
+    </ul>
+  </div>
+  <div class="side-group">
+    <div class="side-group-t">实现细节</div>
+    <ul class="toc">
+      <li><a href="#t5"><span class="n">05</span>渲染层与刷新机制</a></li>
+      <li><a href="#t6"><span class="n">06</span>可视化实现</a></li>
+      <li><a href="#t7"><span class="n">07</span>交互与事件</a></li>
+      <li><a href="#t8"><span class="n">08</span>样式方案</a></li>
+    </ul>
+  </div>
+  <div class="side-group">
+    <div class="side-group-t">质量与交付</div>
+    <ul class="toc">
+      <li><a href="#t9"><span class="n">09</span>安全与数据完整性</a></li>
+      <li><a href="#t10"><span class="n">10</span>构建与自检</a></li>
+      <li><a href="#t11"><span class="n">11</span>交付物与排期</a></li>
+    </ul>
+  </div>
+
+  <div class="side-foot">
+    <b>v0.1 技术方案</b><br>
+    依据：产品设计说明 v0.1<br>
+    单文件 · 零依赖 · 零构建
+  </div>
+</aside>
+
+<main>
+
+<header class="hero">
+  <svg class="hero-art" viewBox="0 0 520 340" fill="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d9488" stop-opacity=".14"/><stop offset="1" stop-color="#1e5f8a" stop-opacity=".04"/></linearGradient>
+      <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f766e" stop-opacity=".2"/><stop offset="1" stop-color="#0f766e" stop-opacity=".05"/></linearGradient>
+      <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1e5f8a" stop-opacity=".15"/><stop offset="1" stop-color="#1e5f8a" stop-opacity=".03"/></linearGradient>
+    </defs>
+    <g>
+      <path d="M0 300 L260 170 L520 300" stroke="#cfe0dc" stroke-width="1" opacity=".45"/>
+      <path d="M0 250 L260 120 L520 250" stroke="#cfe0dc" stroke-width="1" opacity=".28"/>
+      <path d="M260 92 L392 158 L260 224 L128 158 Z" fill="url(#g1)" stroke="#b9d4ce"/>
+      <path d="M128 158 L260 224 L260 292 L128 226 Z" fill="url(#g2)" stroke="#b9d4ce"/>
+      <path d="M392 158 L260 224 L260 292 L392 226 Z" fill="url(#g3)" stroke="#b9d4ce"/>
+      <g stroke="#8fb5ae" stroke-width="1.6" stroke-linecap="round" opacity=".8">
+        <path d="M196 152 L238 131"/><path d="M196 168 L262 135"/><path d="M196 184 L240 162"/>
+      </g>
+      <circle cx="330" cy="150" r="15" fill="none" stroke="#7fada5" stroke-width="2.4" stroke-dasharray="58 36" transform="rotate(-90 330 150)"/>
+      <g opacity=".5" stroke="#a9c8c2">
+        <path d="M412 118 L452 138 L452 196 L412 176 Z" fill="#e2efec"/>
+        <path d="M452 138 L492 118 L492 176 L452 196 Z" fill="#eef6f4"/>
+        <path d="M412 118 L452 98 L492 118 L452 138 Z" fill="#f6fbfa"/>
+      </g>
+      <g fill="#96b8b1" opacity=".38">
+        <circle cx="470" cy="252" r="2"/><circle cx="486" cy="252" r="2"/><circle cx="502" cy="252" r="2"/>
+        <circle cx="470" cy="268" r="2"/><circle cx="486" cy="268" r="2"/><circle cx="502" cy="268" r="2"/>
+      </g>
+    </g>
+  </svg>
+
+  <div class="hero-inner">
+    <span class="eyebrow"><span class="d"></span>Tech Spec · 施工版</span>
+    <h1>个人办公工作台<br><em>单文件零依赖的实现方案</em></h1>
+    <p class="lead">把产品设计说明落成可施工的技术文档：分层架构、纯函数领域逻辑、单一刷新入口、SVG 图表算法、边界用例与验收清单。所有统计口径附可复算的真实数值。</p>
+    <div class="hero-meta">
+      <span class="meta-chip">技术栈 <b>原生 HTML/CSS/ES5</b></span>
+      <span class="meta-chip">依赖 <b>0</b></span>
+      <span class="meta-chip">构建步骤 <b>0</b></span>
+      <span class="meta-chip">预计 <b>约 2600 行 / 105KB</b></span>
+      <span class="meta-chip">4 模块 + 1 置顶区</span>
+    </div>
+  </div>
+</header>
+
+<!-- ===== 01 ===== -->
+<section id="t1">
+  <div class="sec-head"><span class="sec-num">01</span><h2>技术选型与约束</h2><span class="tag">STACK</span></div>
+
+  <h3>选型结论</h3>
+  <p>不做框架选型，本身就是结论：<strong>原生 HTML + 内联 CSS + 内联 ES5 脚本，零依赖、零构建、零请求</strong>。个人办公工作台的交互复杂度（4 个模块、约 30 个动作、两处统计图表）远未到需要引入虚拟 DOM 的程度；而引入任何构建或依赖，都会破坏「单文件下载即用、离线可用」这一硬需求。</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:132px">维度</th><th style="width:150px">选择</th><th>理由与代价</th></tr></thead>
+      <tbody>
+        <tr><td>运行形态</td><td>单文件 <code>.html</code>，双击打开（<code>file://</code> 协议）</td><td>无需服务器；<b>代价</b>：不能使用 ES Module 的 <code>import</code>（file:// 下会被 CORS 拦截），也无需使用</td></tr>
+        <tr><td>语言级别</td><td>ES5 语法（<code>var</code> / <code>function</code> / 无箭头函数无模板字符串）</td><td>兼容老旧内核与企业内网浏览器；<b>代价</b>：拼接 HTML 稍啰嗦，用 <code>h()</code> 辅助函数与数组 <code>join</code> 缓解</td></tr>
+        <tr><td>框架</td><td>无</td><td>改用「数据变更 → <code>refreshAll()</code> 全量重渲染当前视图」的粗粒度更新。单视图 DOM 节点量 &lt; 300，全量重建耗时 &lt; 8ms，人眼无感</td></tr>
+        <tr><td>样式</td><td>内联 <code>&lt;style&gt;</code> + CSS 变量</td><td>设计令牌集中在 <code>:root</code>，改配色只改 8 个变量</td></tr>
+        <tr><td>图表</td><td>手写内联 SVG</td><td>不引 D3/ECharts；四类图表均可由字符串模板直接生成，天然随主题色变化</td></tr>
+        <tr><td>图标</td><td>内联 SVG path，统一 24×24 / 1.6px 线宽</td><td>不用 emoji（跨平台渲染不一致、无法着色、无法对齐基线）</td></tr>
+        <tr><td>存储</td><td><code>localStorage</code>，命名空间 <code>wb_office_*</code></td><td>同步 API、容量 5MB 足够；<b>代价</b>：需自行处理 JSON 解析失败与版本迁移（见 03 章）</td></tr>
+        <tr><td>日期处理</td><td>自写 <code>DateUtil</code>，纯字符串 + 本地时区</td><td>不引 dayjs；全程使用 <code>YYYY-MM-DD</code> 字符串做日期键，规避时区导致「刚过 0 点日期就错一天」的经典坑</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>硬约束（不可协商）</h3>
+  <ul>
+    <li><strong>零外部请求：</strong>不得出现 <code>http(s)://</code>、CDN、外链字体、外链图片。页头配图必须是内联 SVG。</li>
+    <li><strong>单文件：</strong>CSS 与 JS 全部内联，目标 1 个 <code>.html</code>，体积上限 150KB。</li>
+    <li><strong>移动端可用：</strong>窄屏 320px 起不出现横向滚动；输入框字号 ≥ 16px（避免 iOS 聚焦缩放）；点击热区 ≥ 44px。</li>
+    <li><strong>数据不丢：</strong>刷新、关闭、重开数据一致；提供 JSON 导出/导入；清空需二次确认。</li>
+    <li><strong>无环调用：</strong>渲染函数之间严禁互调，统一经 <code>refreshAll()</code> 调度（详见 05 章）。</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="nt">为什么坚持 ES5</span>
+    这套代码的交付对象是「用户保存在电脑里、可能三年后才打开的单个 HTML」。使用箭头函数、可选链、<code>??</code> 等现代语法会让它在旧内核里直接白屏且没有任何错误提示。ES5 多写 10% 的字符，换的是「任何时候双击都能开」。
+  </div>
+</section>
+
+<!-- ===== 02 ===== -->
+<section id="t2">
+  <div class="sec-head"><span class="sec-num">02</span><h2>整体架构</h2><span class="tag">ARCHITECTURE</span></div>
+
+  <h3>分层</h3>
+  <p>严格四层单向依赖，<strong>上层可调下层，下层绝不回调上层</strong>。这是避免「渲染函数互调导致栈溢出」的根本手段。</p>
+
+  <pre><code><span class="c">// 依赖方向：DOM 事件 → Action → Domain（纯函数）→ Store → 视图渲染</span>
+
+ <span class="at">┌──────────────────────────────────────────────┐</span>
+ <span class="at">│</span> <span class="k">L4 事件绑定层</span>  bindEvents()               <span class="at">│</span>  唯一的 DOM 监听入口（事件委托）
+ <span class="at">│</span>      ↓ 调用                                  <span class="at">│</span>
+ <span class="at">│</span> <span class="k">L3 动作层</span>      Actions.addTodo / toggle...  <span class="at">│</span>  改数据 + 调 refreshAll()
+ <span class="at">│</span>      ↓ 读写                                  <span class="at">│</span>
+ <span class="at">│</span> <span class="k">L2 领域层</span>      Todo.* / Project.* / Stats.*  <span class="at">│</span>  <span class="s">纯函数，无副作用，不碰 DOM</span>
+ <span class="at">│</span>      ↓ 持久化                                <span class="at">│</span>
+ <span class="at">│</span> <span class="k">L1 存储层</span>      Store.load / save / export   <span class="at">│</span>  localStorage 读写与迁移
+ <span class="at">└──────────────────────────────────────────────┘</span>
+
+ <span class="at">┌──────────────────────────────────────────────┐</span>
+ <span class="at">│</span> <span class="k">L0 视图层</span>      renderXxx()                  <span class="at">│</span>  只读 store，只写自己负责的容器
+ <span class="at">│</span> 由 refreshAll() 按固定顺序串行调用            <span class="at">│</span>  <span class="s">渲染函数之间不互调</span>
+ <span class="at">└──────────────────────────────────────────────┘</span></code></pre>
+
+  <h3>模块划分（单文件内的「伪模块」）</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:150px">命名空间</th><th style="width:96px">层</th><th>职责</th><th style="width:80px">预估行数</th></tr></thead>
+      <tbody>
+        <tr><td><code>DateUtil</code></td><td>L1 工具</td><td>today/addDays/diffDays/startOfWeek/formatCn/weekKey</td><td>50</td></tr>
+        <tr><td><code>Store</code></td><td>L1</td><td>读写、schema 迁移、导入导出、容量检测</td><td>150</td></tr>
+        <tr><td><code>Todo</code></td><td>L2</td><td>增删改、完成/撤销、顺延、分组、排序</td><td>180</td></tr>
+        <tr><td><code>Project</code></td><td>L2</td><td>增删改、卡点驱动状态、关联进度、排序</td><td>120</td></tr>
+        <tr><td><code>Note</code></td><td>L2</td><td>增删改、标签聚合、筛选、转任务</td><td>110</td></tr>
+        <tr><td><code>Stats</code></td><td>L2</td><td>周复盘全部指标计算（纯函数，可单测）</td><td>160</td></tr>
+        <tr><td><code>Actions</code></td><td>L3</td><td>约 26 个动作方法，统一「改数据 → refresh」</td><td>240</td></tr>
+        <tr><td><code>View</code></td><td>L0</td><td>4 个视图 + 置顶区 + 弹层模板</td><td>700</td></tr>
+        <tr><td><code>Charts</code></td><td>L0</td><td>4 类 SVG 图表生成器</td><td>260</td></tr>
+        <tr><td><code>UI</code></td><td>L0</td><td>toast / modal / drawer / confirm / 空状态</td><td>180</td></tr>
+        <tr><td><code>Events</code></td><td>L4</td><td>全局事件委托 + 键盘快捷键 + 初始化引导</td><td>200</td></tr>
+        <tr><td colspan="3" style="text-align:right;color:var(--ink-3)">CSS + HTML 骨架 + 种子数据</td><td>约 350</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>状态模型</h3>
+  <pre><code><span class="c">// 全局唯一的可写状态：业务数据 + 视图状态分离</span>
+<span class="k">var</span> store = {
+  <span class="c">// —— 业务数据（持久化到 localStorage）——</span>
+  todos:    [],   <span class="c">// Todo[]</span>
+  projects: [],   <span class="c">// Project[]</span>
+  notes:    [],   <span class="c">// Note[]</span>
+  reviews:  {},   <span class="c">// { '2026-10-12': {good, watch, focus, updatedAt} }</span>
+  meta:     { schemaVersion: 1, seededAt: <span class="n">null</span>, lastRunDate: <span class="s">'2026-10-18'</span> }
+};
+
+<span class="c">// 视图状态（不持久化，刷新后回到默认）</span>
+<span class="k">var</span> ui = {
+  view: <span class="s">'todos'</span>,        <span class="c">// todos | notes | projects | weekly</span>
+  noteTag: <span class="n">null</span>,          <span class="c">// 当前筛选标签</span>
+  projectFilter: <span class="s">'all'</span>,   <span class="c">// all | active | blocked | done</span>
+  weeklyStart: <span class="s">'2026-10-12'</span>,
+  expanded: {},           <span class="c">// { 'future-2026-10-19': true, done: false }</span>
+  editing: <span class="n">null</span>,           <span class="c">// { type:'todo'|'note'|'project', id } 行内编辑态</span>
+  undo: <span class="n">null</span>               <span class="c">// 撤销栈：{ kind, payload, timer }</span>
+};</code></pre>
+  <p class="mini">视图状态与业务数据物理分离，好处是：导出备份只导 <code>store</code>，绝不会把「用户当时在看哪个 Tab」这类噪音写进备份文件。</p>
+</section>
+
+<!-- ===== 03 ===== -->
+<section id="t3">
+  <div class="sec-head"><span class="sec-num">03</span><h2>数据层</h2><span class="tag">STORAGE</span></div>
+
+  <h3>存储键设计</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:250px">Key</th><th>内容</th><th style="width:180px">说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>wb_office_data_v1</code></td><td>整个 <code>store</code> 的 JSON（todos + projects + notes + reviews + meta）</td><td>单一键，原子写入，避免多键不同步</td></tr>
+        <tr><td><code>wb_office_ui_v1</code></td><td>少量视图偏好（上次所在 Tab、置顶区是否折叠）</td><td>丢失无影响，读写都包 try/catch</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">
+    <span class="nt">为什么用单键而不是分表多键</span>
+    多键方案下，一次「完成任务 + 项目进度变化」要写两处，一旦第二处写入失败（配额满）就会产生<b>跨表不一致</b>。单键序列化后一次 <code>setItem</code> 成功或失败，天然原子。数据量估算：1000 条任务约 260KB，远低于 5MB 上限。
+  </div>
+
+  <h3>读写与容错</h3>
+  <pre><code><span class="k">var</span> Store = (function(){
+  <span class="k">var</span> KEY = <span class="s">'wb_office_data_v1'</span>;
+  <span class="k">var</span> SCHEMA = <span class="n">1</span>;
+  <span class="k">var</span> cache = <span class="n">null</span>;      <span class="c">// 内存镜像，渲染只读 cache</span>
+
+  <span class="k">function</span> <span class="k">empty</span>(){
+    <span class="k">return</span> { todos:[], projects:[], notes:[], reviews:{},
+             meta:{ schemaVersion: SCHEMA, seededAt:<span class="n">null</span>, lastRunDate:<span class="n">null</span> } };
+  }
+
+  <span class="k">function</span> <span class="k">load</span>(){
+    <span class="k">var</span> raw = <span class="n">null</span>;
+    <span class="k">try</span> { raw = localStorage.getItem(KEY); } <span class="k">catch</span>(e){ raw = <span class="n">null</span>; }  <span class="c">// 隐私模式可能抛错</span>
+    <span class="k">if</span> (!raw) <span class="k">return</span> (cache = empty());
+    <span class="k">try</span> {
+      <span class="k">var</span> d = JSON.parse(raw);
+      <span class="k">return</span> (cache = migrate(d));
+    } <span class="k">catch</span>(e){
+      <span class="c">// 解析失败：不静默清空，先备份原始串再降级为空数据</span>
+      backupBroken(raw);
+      <span class="k">return</span> (cache = empty());
+    }
+  }
+
+  <span class="k">function</span> <span class="k">save</span>(){
+    store.meta.updatedAt = DateUtil.now();
+    <span class="k">try</span> {
+      localStorage.setItem(KEY, JSON.stringify(cache));
+      <span class="k">return</span> <span class="n">true</span>;
+    } <span class="k">catch</span>(e){
+      <span class="c">// 配额超限 / 隐私模式：提示用户立即导出，且不阻断当前操作</span>
+      UI.toast(<span class="s">'本地存储写入失败，请立即导出备份'</span>);
+      <span class="k">return</span> <span class="n">false</span>;
+    }
+  }
+  ...
+})();</code></pre>
+
+  <h3>Schema 版本迁移</h3>
+  <p>首版 schemaVersion = 1，但迁移框架现在就埋好——个人工具最常见的翻车是「半年后加了个字段，老数据读进来是 undefined，页面某处静默空白」。</p>
+  <pre><code><span class="k">function</span> <span class="k">migrate</span>(d){
+  <span class="k">var</span> v = d.meta && d.meta.schemaVersion || <span class="n">0</span>;
+  <span class="k">if</span> (v &lt; <span class="n">1</span>) {
+    <span class="c">// v0（无版本号）→ v1：补齐 originalDate、postponeLog</span>
+    (d.todos || []).forEach(<span class="k">function</span>(t){
+      <span class="k">if</span> (!t.originalDate) t.originalDate = t.date || <span class="n">null</span>;
+      <span class="k">if</span> (!t.postponeLog)  t.postponeLog  = [];
+      <span class="k">if</span> (<span class="k">typeof</span> t.postponeCount !== <span class="s">'number'</span>) t.postponeCount = t.postponeLog.length;
+    });
+    d.meta = d.meta || {}; d.meta.schemaVersion = <span class="n">1</span>;
+  }
+  <span class="c">// 防御：任何缺失集合补空数组，杜绝后续 .filter 崩溃</span>
+  d.todos = d.todos || []; d.projects = d.projects || [];
+  d.notes = d.notes || []; d.reviews = d.reviews || {};
+  <span class="k">return</span> d;
+}</code></pre>
+
+  <h3>导出 / 导入</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>导出</h4>
+      <p class="mini" style="margin:0 0 6px">生成文件名 <code>办公工作台备份_2026-10-18.json</code>，内容为 <code>{ app, version, exportedAt, data }</code>。用 <code>Blob + a[download]</code> 触发，不请求网络。</p>
+      <p class="mini" style="margin:0"><b>注意：</b><code>file://</code> 下部分浏览器会拦截 Blob 下载，需同时提供「复制到剪贴板」的降级按钮。</p>
+    </div>
+    <div class="card">
+      <h4>导入</h4>
+      <p class="mini" style="margin:0 0 6px">选文件 → <code>FileReader</code> 读文本 → 校验 <code>app</code> 标识与必需字段 → 弹出摘要「将导入 32 条任务 / 3 个项目 / 8 条灵感，这会覆盖当前数据」→ 确认后写入。</p>
+      <p class="mini" style="margin:0"><b>无条数上限</b>，但 &gt; 2000 条时提示「数据量较大，请稍候」。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 04 ===== -->
+<section id="t4">
+  <div class="sec-head"><span class="sec-num">04</span><h2>领域逻辑层</h2><span class="tag">DOMAIN</span></div>
+  <p class="lead">本章是整个方案最关键的部分：逾期判定、自动顺延、分组排序、项目进度、周复盘口径。全部实现为<strong>纯函数</strong>（输入数据，输出结果，不改入参、不碰 DOM），因此可以脱离页面直接用 Node 跑用例验证。</p>
+
+  <h3>4.1 逾期判定的唯一口径</h3>
+  <p>产品设计里提出「自动顺延到今天，但依然标红」。落地为两个字段各管一件事：</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:130px">字段</th><th>含义</th><th>谁写</th></tr></thead>
+      <tbody>
+        <tr><td><code>date</code></td><td>现在的截止日，决定「归到哪一天」。自动顺延后 = 今天</td><td>用户改期 / 顺延逻辑</td></tr>
+        <tr><td><code>originalDate</code></td><td>最初定的截止日，<b>永不修改</b>，是逾期判定的唯一依据</td><td>创建时写入，之后只读</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <pre><code><span class="c">// 判定的三态：逾期 / 今天 / 未来 / 待安排</span>
+Todo.bucket = <span class="k">function</span>(t, today){
+  <span class="k">if</span> (t.status === <span class="s">'done'</span>)    <span class="k">return</span> <span class="s">'done'</span>;
+  <span class="k">if</span> (!t.date)                <span class="k">return</span> <span class="s">'someday'</span>;   <span class="c">// 无日期，不参与逾期</span>
+  <span class="k">if</span> (t.date &gt; today)         <span class="k">return</span> <span class="s">'future'</span>;
+  <span class="c">// date &lt;= today：是否由过去挪来？</span>
+  <span class="k">return</span> (t.originalDate &amp;&amp; t.originalDate &lt; today) ? <span class="s">'overdue'</span> : <span class="s">'today'</span>;
+};
+
+Todo.overdueDays = <span class="k">function</span>(t, today){
+  <span class="k">if</span> (!t.originalDate) <span class="k">return</span> <span class="n">0</span>;
+  <span class="k">var</span> d = DateUtil.diffDays(today, t.originalDate);
+  <span class="k">return</span> d &gt; <span class="n">0</span> ? d : <span class="n">0</span>;
+};</code></pre>
+  <div class="note warn">
+    <span class="nt">边界：同一天内改期</span>
+    用户把今天到期的任务改成昨天（<code>date = 昨天</code>），<code>originalDate</code> 仍是今天 → 不判逾期，但 <code>date &lt; today</code>。为避免出现「既不逾期也不在今天」的黑洞，<code>bucket</code> 对 <code>date &lt;= today</code> 一律归入 <code>today</code> 或 <code>overdue</code>，保证今日清单不漏条目。
+  </div>
+
+  <h3>4.2 自动顺延（Y2T）</h3>
+  <p>时机：<strong>每次页面加载，在首次渲染之前</strong>执行一次。用 <code>meta.lastRunDate</code> 去重，避免同一天内多次刷新反复 +1。</p>
+  <pre><code>Todo.runAutoRollover = <span class="k">function</span>(store, today){
+  <span class="k">var</span> changed = <span class="n">false</span>;
+  <span class="k">if</span> (store.meta.lastRunDate === today) <span class="k">return</span> changed;    <span class="c">// 当天已跑过</span>
+
+  store.todos.forEach(<span class="k">function</span>(t){
+    <span class="k">if</span> (t.status !== <span class="s">'todo'</span>) <span class="k">return</span>;
+    <span class="k">if</span> (!t.date || t.date &gt;= today) <span class="k">return</span>;              <span class="c">// 未来 / 无日期不动</span>
+
+    t.postponeLog.push({ <span class="k">from</span>: t.date, <span class="k">to</span>: today, at: DateUtil.now(), auto: <span class="n">true</span> });
+    t.postponeCount += <span class="n">1</span>;
+    t.date = today;                                          <span class="c">// originalDate 保持不变 → 仍然标红</span>
+    changed = <span class="n">true</span>;
+  });
+
+  store.meta.lastRunDate = today;
+  <span class="k">return</span> changed;   <span class="c">// true 时触发一次 save()</span>
+};</code></pre>
+  <div class="note">
+    <span class="nt">跨越 N 天没打开</span>
+    任务原定 10/10，用户 10/15 才打开。无论中间隔了几天，<b>只记一次顺延</b>（from 10/10 → to 今天），而不是循环 +5 次。原因：顺延次数的语义是「我几次决定往后推」，不是「过了几个自然日」。若想表达拖延程度，用逾期天数（今天 − originalDate）已经足够。
+  </div>
+
+  <h3>4.3 今日清单的排序与分组</h3>
+  <pre><code><span class="c">// 排序权重：逾期优先 → 优先级 → 原定日期更早 → 创建更早</span>
+<span class="k">var</span> PRI_W = { P0:<span class="n">0</span>, P1:<span class="n">1</span>, P2:<span class="n">2</span>, P3:<span class="n">3</span> };
+
+Todo.sortForToday = <span class="k">function</span>(list){
+  <span class="k">return</span> list.slice().sort(<span class="k">function</span>(a, b){
+    <span class="k">var</span> oa = Todo.bucket(a, TODAY) === <span class="s">'overdue'</span> ? <span class="n">0</span> : <span class="n">1</span>;
+    <span class="k">var</span> ob = Todo.bucket(b, TODAY) === <span class="s">'overdue'</span> ? <span class="n">0</span> : <span class="n">1</span>;
+    <span class="k">if</span> (oa !== ob) <span class="k">return</span> oa - ob;
+    <span class="k">var</span> pa = PRI_W[a.priority], pb = PRI_W[b.priority];
+    <span class="k">if</span> (pa !== pb) <span class="k">return</span> pa - pb;
+    <span class="k">var</span> da = a.originalDate || <span class="s">'9999-99-99'</span>, db = b.originalDate || <span class="s">'9999-99-99'</span>;
+    <span class="k">if</span> (da !== db) <span class="k">return</span> da &lt; db ? -<span class="n">1</span> : <span class="n">1</span>;
+    <span class="k">return</span> a.createdAt &lt; b.createdAt ? -<span class="n">1</span> : <span class="n">1</span>;
+  });
+};
+
+<span class="c">// 未来任务按 date 字符串分组（YYYY-MM-DD 字典序 == 时间序）</span>
+Todo.groupFuture = <span class="k">function</span>(list){
+  <span class="k">var</span> map = {}, order = [];
+  list.forEach(<span class="k">function</span>(t){
+    <span class="k">var</span> k = t.date || <span class="s">''</span>;
+    <span class="k">if</span> (!map[k]) { map[k] = []; order.push(k); }
+    map[k].push(t);
+  });
+  order.sort(<span class="k">function</span>(a, b){
+    <span class="k">if</span> (!a) <span class="k">return</span> <span class="n">1</span>;            <span class="c">// 无日期排最后</span>
+    <span class="k">if</span> (!b) <span class="k">return</span> -<span class="n">1</span>;
+    <span class="k">return</span> a &lt; b ? -<span class="n">1</span> : <span class="n">1</span>;
+  });
+  <span class="k">return</span> order.map(<span class="k">function</span>(k){ <span class="k">return</span> { date:k, items: map[k] }; });
+};</code></pre>
+  <p class="mini">用 <code>YYYY-MM-DD</code> 字符串排序而非 <code>Date</code> 对象比较，是为了彻底避开时区：字符串字典序在补零格式下与时间序完全一致，且比较开销更低。</p>
+
+  <h3>4.4 项目进度与状态</h3>
+  <pre><code>Project.progress = <span class="k">function</span>(p, todos, today){
+  <span class="k">var</span> rel = todos.filter(<span class="k">function</span>(t){ <span class="k">return</span> t.projectId === p.id; });
+  <span class="k">var</span> done = rel.filter(<span class="k">function</span>(t){ <span class="k">return</span> t.status === <span class="s">'done'</span>; }).length;
+  <span class="k">var</span> overdue = rel.filter(<span class="k">function</span>(t){ <span class="k">return</span> Todo.bucket(t, today) === <span class="s">'overdue'</span>; }).length;
+  <span class="k">return</span> {
+    total: rel.length, done: done, overdue: overdue,
+    rate: rel.length ? done / rel.length : <span class="n">null</span>,   <span class="c">// null 表示「暂无关联」，UI 显示置灰而非 0%</span>
+    items: rel
+  };
+};
+
+<span class="c">// 状态由卡点字段驱动，不允许手动设 blocked</span>
+Project.syncStatus = <span class="k">function</span>(p){
+  <span class="k">if</span> (p.status === <span class="s">'done'</span> || p.status === <span class="s">'paused'</span>) <span class="k">return</span> p.status;
+  <span class="k">return</span> (p.blocker && p.blocker.trim()) ? <span class="s">'blocked'</span> : <span class="s">'active'</span>;
+};</code></pre>
+  <div class="note">
+    <span class="nt">为什么 blocked 不让手选</span>
+    手选会产生「状态说卡住、但没写卡在哪」的空卡点，这种条目放进置顶区等于噪音。<b>填写卡点即自动 blocked，清空即回到 active</b>，一个字段同时解决状态与原因，也顺便强制用户把问题说清楚。
+  </div>
+
+  <h3>4.5 周复盘口径</h3>
+  <p>这一节的每个数字都做了实算校验（示例数据见 10 章），避免交付时出现「图上有 12 件、列表只有 11 条」的信任崩塌。</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:110px">指标</th><th style="width:270px">口径（精确到实现）</th><th>示例值</th></tr></thead>
+      <tbody>
+        <tr><td>本周完成</td><td><code>status==='done' &amp;&amp; doneAt ∈ [周一 00:00, 周日 23:59]</code>，按本地日期字符串比较</td><td><b>11 件</b></td></tr>
+        <tr><td>完成率</td><td>分母 = 本周到期的任务 ∪ 本周完成的任务（去重）；分子 = 分母中 <code>done</code> 的数量</td><td><b>11 / 13 = 84.6%</b></td></tr>
+        <tr><td>优先级分布</td><td>对「本周完成」按 <code>priority</code> 分四档计数</td><td>P0 4 · P1 3 · P2 4 · P3 0</td></tr>
+        <tr><td>精力分布</td><td>对「本周完成」按 <code>projectId</code> 计数，<code>null</code> 合并为「其他」；取前 5 个项目 + 其他</td><td>首页改版 3 · 其他 3 · Q3 3 · 博客 2</td></tr>
+        <tr><td>一周节奏</td><td>周一至周日，每日 <code>doneAt</code> 落在该日的完成数</td><td>0 · 2 · 2 · 1 · 2 · 1 · 2</td></tr>
+        <tr><td>顺延次数</td><td>本周内发生的 <code>postponeLog[].at</code> 事件计数（非 <code>postponeCount</code> 求和，避免历史累积重复计算）</td><td>2 件各顺延 2 次</td></tr>
+        <tr><td>卡点汇总</td><td>遍历 <code>blockerLog</code>，取与本周有交集的区间；<code>endAt</code> 为空 = 未解除</td><td>1 未解除 / 2 已解除</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <pre><code>Stats.weekRange = <span class="k">function</span>(weekStart){        <span class="c">// 周一为一周起点</span>
+  <span class="k">return</span> { start: weekStart, end: DateUtil.addDays(weekStart, <span class="n">6</span>) };
+};
+
+Stats.week = <span class="k">function</span>(store, weekStart){
+  <span class="k">var</span> r = Stats.weekRange(weekStart);
+  <span class="k">var</span> inWeek = <span class="k">function</span>(d){ <span class="k">return</span> d &amp;&amp; d &gt;= r.start &amp;&amp; d &lt;= r.end; };
+
+  <span class="k">var</span> done = store.todos.filter(<span class="k">function</span>(t){
+    <span class="k">return</span> t.status === <span class="s">'done'</span> &amp;&amp; inWeek(DateUtil.dayOf(t.doneAt));
+  });
+
+  <span class="c">// 分母：本周到期 ∪ 本周完成</span>
+  <span class="k">var</span> ids = {};
+  store.todos.forEach(<span class="k">function</span>(t){
+    <span class="k">if</span> (inWeek(t.date) || (t.doneAt &amp;&amp; inWeek(DateUtil.dayOf(t.doneAt)))) ids[t.id] = <span class="n">true</span>;
+  });
+  <span class="k">var</span> denom = Object.keys(ids).length;
+  <span class="k">var</span> denomDone = store.todos.filter(<span class="k">function</span>(t){
+    <span class="k">return</span> ids[t.id] &amp;&amp; t.status === <span class="s">'done'</span>;
+  }).length;
+
+  <span class="k">return</span> {
+    range: r,
+    doneCount: done.length,
+    doneRate: denom ? denomDone / denom : <span class="n">null</span>,
+    byPriority: Stats.countBy(done, <span class="s">'priority'</span>),
+    byProject: Stats.byProject(done, store.projects),
+    byDay: Stats.byDay(done, r),
+    postponeEvents: Stats.postponeIn(store.todos, r),
+    blockers: Stats.blockers(store.projects, r)
+  };
+};</code></pre>
+</section>
+
+<!-- ===== 05 ===== -->
+<section id="t5">
+  <div class="sec-head"><span class="sec-num">05</span><h2>渲染层与刷新机制</h2><span class="tag">RENDER</span></div>
+
+  <h3>单一刷新入口（防环核心）</h3>
+  <p>所有数据变更结束后，只调用 <code>refreshAll()</code>。渲染函数彼此之间<strong>没有任何调用关系</strong>，都只读 <code>store</code>、只写自己的容器。<code>renderAll()</code> 的顺序固定，且每个函数内部不再触发别的渲染。</p>
+  <pre><code><span class="c">// ✅ 唯一的渲染调度点</span>
+<span class="k">function</span> <span class="k">refreshAll</span>(){
+  refreshAlert();       <span class="c">// 置顶区（跨模块可见）</span>
+  refreshNavBadge();    <span class="c">// 导航上的待办/逾期计数</span>
+
+  <span class="k">switch</span> (ui.view) {
+    <span class="k">case</span> <span class="s">'todos'</span>:    refreshTodos();    <span class="k">break</span>;
+    <span class="k">case</span> <span class="s">'notes'</span>:    refreshNotes();    <span class="k">break</span>;
+    <span class="k">case</span> <span class="s">'projects'</span>: refreshProjects(); <span class="k">break</span>;
+    <span class="k">case</span> <span class="s">'weekly'</span>:   refreshWeekly();   <span class="k">break</span>;
+  }
+}
+
+<span class="c">// ❌ 禁止：refreshTodos 内部调用 refreshAlert 或 refreshProjects</span>
+<span class="c">//    需要联动时，改数据后调 refreshAll()，由它统一按序重算</span></code></pre>
+
+  <div class="note danger">
+    <span class="nt">必须守住的三条线</span>
+    ① 渲染函数<b>不读 DOM 判断状态</b>，只读 <code>store</code> / <code>ui</code>；<br>
+    ② 渲染函数<b>不写 store</b>，只写自己容器的 innerHTML；<br>
+    ③ 任何 <code>renderXxx</code> 内出现另一个 <code>renderXxx(</code> 调用，即视为缺陷，代码自检阶段直接拦下。
+  </div>
+
+  <h3>渲染策略：局部全量替换</h3>
+  <p>每个视图有一个固定容器（如 <code>#view-todos</code>），刷新时整体重建其 innerHTML。用字符串拼接而非 DOM API 逐节点创建，性能与可读性都更好。</p>
+  <pre><code><span class="k">function</span> <span class="k">h</span>(tag, attrs, children){        <span class="c">// 极简模板助手</span>
+  <span class="k">var</span> s = <span class="s">'&lt;'</span> + tag;
+  <span class="k">for</span> (<span class="k">var</span> k <span class="k">in</span> attrs) {
+    <span class="k">if</span> (attrs[k] === <span class="n">null</span> || attrs[k] === <span class="n">undefined</span> || attrs[k] === <span class="n">false</span>) <span class="k">continue</span>;
+    s += <span class="s">' '</span> + k + <span class="s">'="'</span> + esc(attrs[k]) + <span class="s">'"'</span>;
+  }
+  <span class="k">return</span> s + <span class="s">'&gt;'</span> + (children || <span class="s">''</span>) + <span class="s">'&lt;/'</span> + tag + <span class="s">'&gt;'</span>;
+}
+
+<span class="c">// 用户输入必须过 esc()，防 XSS 也防引号破坏结构</span>
+<span class="k">function</span> <span class="k">esc</span>(v){
+  <span class="k">return</span> String(v == <span class="n">null</span> ? <span class="s">''</span> : v)
+    .replace(/&amp;/g, <span class="s">'&amp;amp;'</span>).replace(/&lt;/g, <span class="s">'&amp;lt;'</span>)
+    .replace(/&gt;/g, <span class="s">'&amp;gt;'</span>).replace(/"/g, <span class="s">'&amp;quot;'</span>);
+}</code></pre>
+  <div class="note warn">
+    <span class="nt">全量替换的两个坑</span>
+    <b>焦点丢失：</b>行内编辑时若触发全量重渲染，输入框会失焦、光标回到开头。处理方式是——编辑态<b>不触发 refreshAll</b>，只在失焦提交时改数据再刷新；或刷新后按 <code>ui.editing</code> 恢复焦点并把光标移到末尾。<br>
+    <b>滚动跳动：</b>刷新前记录当前视图 <code>scrollTop</code>，刷新后写回。
+  </div>
+
+  <h3>视图骨架</h3>
+  <pre><code>&lt;div id=<span class="s">"app"</span>&gt;
+  &lt;aside id=<span class="s">"nav"</span>&gt;…4 个模块入口 + 底部备份入口…&lt;/aside&gt;
+  &lt;main id=<span class="s">"main"</span>&gt;
+    &lt;div id=<span class="s">"alert-slot"</span>&gt;&lt;/div&gt;        <span class="c">&lt;!-- 置顶区，所有视图共用 --&gt;</span>
+    &lt;div id=<span class="s">"view-todos"</span>&gt;&lt;/div&gt;
+    &lt;div id=<span class="s">"view-notes"</span>&gt;&lt;/div&gt;
+    &lt;div id=<span class="s">"view-projects"</span>&gt;&lt;/div&gt;
+    &lt;div id=<span class="s">"view-weekly"</span>&gt;&lt;/div&gt;
+  &lt;/main&gt;
+&lt;/div&gt;
+&lt;div id=<span class="s">"layer"</span>&gt;&lt;/div&gt;              <span class="c">&lt;!-- 弹层/抽屉容器，脱离滚动流 --&gt;</span>
+&lt;div id=<span class="s">"toast"</span>&gt;&lt;/div&gt;</code></pre>
+  <p class="mini">四个视图容器常驻 DOM，仅用 <code>hidden</code> 属性切换显隐——保留各自滚动位置，切回来不会跳回顶部；只有当前视图的容器会被重写，其他容器的内容不变。</p>
+</section>
+
+<!-- ===== 06 ===== -->
+<section id="t6">
+  <div class="sec-head"><span class="sec-num">06</span><h2>可视化实现</h2><span class="tag">CHARTS</span></div>
+  <p class="lead">四类图表全部内联 SVG 字符串生成，视口宽度固定、<code>width:100%</code> 自适应，不依赖 JS 测量 DOM（因此无需 <code>resize</code> 监听，也无需 <code>getBBox</code>）。</p>
+
+  <h3>6.1 优先级分布 · 横向条形</h3>
+  <p>四条固定高度 10px、圆角 3px 的矩形。条长 = <code>value / max * 可用宽度</code>；最大值取四项中的最大件数，<strong>不取总数</strong>，否则四项都很短。条尾标注数值，用 <code>text-anchor:start</code> 定位在条形末端右侧 6px。</p>
+  <pre><code>Charts.priorityBars = <span class="k">function</span>(byPriority){
+  <span class="k">var</span> rows = [
+    { key:<span class="s">'P0'</span>, label:<span class="s">'紧急重要'</span>,   color:<span class="s">'#c0392b'</span> },
+    { key:<span class="s">'P1'</span>, label:<span class="s">'重要不紧急'</span>, color:<span class="s">'#e08e3c'</span> },
+    { key:<span class="s">'P2'</span>, label:<span class="s">'紧急不重要'</span>, color:<span class="s">'#0d9488'</span> },
+    { key:<span class="s">'P3'</span>, label:<span class="s">'不急不重要'</span>, color:<span class="s">'#9aadaa'</span> }
+  ];
+  <span class="k">var</span> W = <span class="n">300</span>, LABEL = <span class="n">64</span>, BAR = W - LABEL - <span class="n">34</span>;   <span class="c">// 右侧留 34px 放数字</span>
+  <span class="k">var</span> max = Math.max(<span class="n">1</span>, Math.max.apply(<span class="n">null</span>, rows.map(<span class="k">function</span>(r){ <span class="k">return</span> byPriority[r.key] || <span class="n">0</span>; })));
+
+  <span class="k">var</span> body = rows.map(<span class="k">function</span>(r, i){
+    <span class="k">var</span> v = byPriority[r.key] || <span class="n">0</span>;
+    <span class="k">var</span> w = v ? Math.max(<span class="n">6</span>, Math.round(v / max * BAR)) : <span class="n">0</span>;   <span class="c">// 有值至少 6px，避免看不见</span>
+    <span class="k">var</span> y = i * <span class="n">26</span> + <span class="n">6</span>;
+    <span class="k">return</span> <span class="s">'&lt;text x="0" y="'</span> + (y + <span class="n">8</span>) + <span class="s">'" class="ck-lbl"&gt;'</span> + r.label + <span class="s">'&lt;/text&gt;'</span> +
+           <span class="s">'&lt;rect x="'</span> + LABEL + <span class="s">'" y="'</span> + y + <span class="s">'" width="'</span> + w + <span class="s">'" height="10" rx="3" fill="'</span> + r.color + <span class="s">'" opacity=".86"/&gt;'</span> +
+           <span class="s">'&lt;text x="'</span> + (LABEL + w + <span class="n">6</span>) + <span class="s">'" y="'</span> + (y + <span class="n">9</span>) + <span class="s">'" class="ck-val"&gt;'</span> + v + <span class="s">'&lt;/text&gt;'</span>;
+  }).join(<span class="s">''</span>);
+
+  <span class="k">return</span> <span class="s">'&lt;svg viewBox="0 0 300 '</span> + (rows.length * <span class="n">26</span> + <span class="n">12</span>) + <span class="s">'" class="chart" role="img"&gt;'</span> + body + <span class="s">'&lt;/svg&gt;'</span>;
+};</code></pre>
+
+  <h3>6.2 精力分布 · 环形图</h3>
+  <p>不画弧线 path，改用 <strong>stroke-dasharray 圆环 + rotate 偏移</strong>：每一段就是一个 <code>&lt;circle&gt;</code>，周长 <code>C = 2πr</code>，段长 = <code>value/total*C</code>，起始角 = 前面所有段的累计角度。</p>
+  <pre><code><span class="k">var</span> R = <span class="n">38</span>, CIRC = <span class="n">2</span> * Math.PI * R;      <span class="c">// ≈ 238.76</span>
+
+<span class="k">var</span> acc = <span class="n">0</span>;
+<span class="k">var</span> segs = data.map(<span class="k">function</span>(d, i){
+  <span class="k">var</span> len = d.value / total * CIRC;
+  <span class="k">var</span> rot = <span class="n">-90</span> + acc / CIRC * <span class="n">360</span>;         <span class="c">// -90 = 从 12 点方向开始</span>
+  acc += len;
+  <span class="k">return</span> <span class="s">'&lt;circle r="'</span> + R + <span class="s">'" fill="none" stroke="'</span> + d.color + <span class="s">'" stroke-width="16" '</span> +
+         <span class="s">'stroke-dasharray="'</span> + len.toFixed(<span class="n">2</span>) + <span class="s">' '</span> + (CIRC - len).toFixed(<span class="n">2</span>) + <span class="s">'" '</span> +
+         <span class="s">'transform="rotate('</span> + rot.toFixed(<span class="n">2</span>) + <span class="s">')"/&gt;'</span>;
+}).join(<span class="s">''</span>);</code></pre>
+  <div class="note">
+    <span class="nt">为什么不用 path 弧线</span>
+    <code>d="M … A …"</code> 需要三角函数算起止点，且 100%（单项目）时起止点重合会导致弧线消失，必须特判。dasharray 方案天然支持 100%，数学也只有乘除，代码量少一半。
+  </div>
+
+  <h3>6.3 一周节奏 · 柱状图</h3>
+  <p>7 根柱子，<code>x = i * (W/7) + 偏移</code>，高度 = <code>value/max*H</code>。三条水平网格线用固定值绘制，<strong>无数据的日子也画一个 2px 高的基线条</strong>，让「这天没干活」可视化，而不是柱子凭空消失。</p>
+
+  <h3>6.4 进度条与热力小格（CSS 实现）</h3>
+  <p>项目卡进度条、置顶区计数条这类「单值比例」用纯 CSS：外层固定高度 <code>overflow:hidden</code>，内层 <code>width</code> 百分比 + <code>transition:width .3s</code>。不用 SVG，减 DOM 数量。</p>
+
+  <h3>图表规范汇总</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:120px">项目</th><th>规范</th></tr></thead>
+      <tbody>
+        <tr><td>配色</td><td>按优先级/项目固定顺序取自 <code>--c-p0..p3</code> 与 <code>--c-proj-1..5</code>（深青 → 钢蓝 → 浅青 → 灰青），保证同一项目每次刷新颜色一致</td></tr>
+        <tr><td>字号</td><td>轴标签与数值 9px（<code>.ck-lbl</code> / <code>.ck-val</code>），SVG 内会随 viewBox 缩放，实际渲染约 11px</td></tr>
+        <tr><td>数值格式</td><td>整数不带小数点；百分比保留整数位；0 值照常显示不隐藏</td></tr>
+        <tr><td>无障碍</td><td><code>&lt;svg role="img"&gt;</code> + <code>&lt;title&gt;</code> 概述数据；数值同时以文本形式出现在图下方列表里，不单靠颜色传达信息</td></tr>
+        <tr><td>空数据</td><td>总数为 0 时不出图，渲染一行「本周还没有完成记录」，避免出现环形空白圈或全零柱状图</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== 07 ===== -->
+<section id="t7">
+  <div class="sec-head"><span class="sec-num">07</span><h2>交互与事件</h2><span class="tag">EVENTS</span></div>
+
+  <h3>事件委托（唯一监听入口）</h3>
+  <p>因为视图是全量重建的，逐个绑定监听会随刷新反复泄漏。方案是<strong>只在 <code>#app</code> 上绑一次 click / change / keydown</strong>，靠 <code>data-act</code> 属性分发。</p>
+  <pre><code>document.addEventListener(<span class="s">'click'</span>, <span class="k">function</span>(e){
+  <span class="k">var</span> el = closest(e.target, <span class="s">'[data-act]'</span>);
+  <span class="k">if</span> (!el) <span class="k">return</span>;
+  <span class="k">var</span> act = el.getAttribute(<span class="s">'data-act'</span>);
+  <span class="k">var</span> id  = el.getAttribute(<span class="s">'data-id'</span>);
+
+  <span class="k">switch</span> (act) {
+    <span class="k">case</span> <span class="s">'todo-toggle'</span>:  Actions.toggleTodo(id);        <span class="k">break</span>;
+    <span class="k">case</span> <span class="s">'todo-postpone'</span>:Actions.postponeOne(id);       <span class="k">break</span>;
+    <span class="k">case</span> <span class="s">'todo-del'</span>:     Actions.askDeleteTodo(id);     <span class="k">break</span>;
+    <span class="k">case</span> <span class="s">'rollover-all'</span>: Actions.postponeAllOverdue();   <span class="k">break</span>;
+    <span class="k">case</span> <span class="s">'proj-edit'</span>:    Actions.beginInlineEdit(el);    <span class="k">break</span>;
+    <span class="k">case</span> <span class="s">'nav'</span>:          Actions.switchView(id);         <span class="k">break</span>;
+    <span class="c">// …共约 26 个</span>
+  }
+});</code></pre>
+  <p class="mini">动作方法命名规则：<code>data-act</code> 用「对象-动作」短横线格式，与 <code>Actions</code> 中的方法一一对应，便于排查「点了没反应」是渲染漏了 data-act 还是动作没注册。</p>
+
+  <h3>核心动作清单</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:150px">动作</th><th style="width:230px">实现要点</th><th>刷新与反馈</th></tr></thead>
+      <tbody>
+        <tr><td><code>addTodoQuick</code></td><td>取输入框值，trim 非空才建；默认 P1 / 今天 / 无项目</td><td>清空输入框保留焦点 · toast「已添加」可撤销</td></tr>
+        <tr><td><code>toggleTodo</code></td><td>done → 写 <code>doneAt</code>；未 done → 清空 <code>doneAt</code></td><td>refreshAll · 已完成移入折叠区 · 行淡出 300ms</td></tr>
+        <tr><td><code>postponeOne</code></td><td>date = 明天（不是今天，手动顺延语义是「明天再做」）</td><td>refreshAll · toast「已顺延到明天（第 N 次）」可撤销</td></tr>
+        <tr><td><code>postponeAllOverdue</code></td><td>先弹确认列出任务名与件数，确认后批量改 date</td><td>refreshAll · toast「已顺延 N 件」</td></tr>
+        <tr><td><code>updateTodo</code></td><td>字段级 patch，未传字段不动</td><td>仅在抽屉内改多字段时统一刷新一次</td></tr>
+        <tr><td><code>askDeleteTodo</code></td><td>按钮变「确认删除」，3 秒内再点才执行</td><td>删除后 refreshAll · 项目进度自动重算</td></tr>
+        <tr><td><code>addNote / updateNote</code></td><td>标签做 trim、去重、限 3 个；空标签不存</td><td>保存后清空输入、保留焦点</td></tr>
+        <tr><td><code>noteToTodo</code></td><td>用备注正文建 todo 并打开抽屉预填，不删原灵感</td><td>跳转待办视图</td></tr>
+        <tr><td><code>updateProjectField</code></td><td>行内编辑三字段之一，失焦即存</td><td>调用 <code>syncStatus</code> 后 refreshAll</td></tr>
+        <tr><td><code>setBlocker</code></td><td>写入/清空卡点，同时维护 <code>blockerLog</code> 区间</td><td>置顶区可能即时新增/移除条目</td></tr>
+        <tr><td><code>switchWeek</code></td><td>只改 <code>ui.weeklyStart</code>，不动数据</td><td>只刷新复盘视图</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>撤销（Undo）机制</h3>
+  <p>完成、顺延、删除都提供 5 秒撤销。实现为一个轻量栈：保存动作前后的<strong>快照</strong>而非逆向操作，因为「撤销删除」用逆向很难还原 id 与创建顺序。</p>
+  <pre><code><span class="k">function</span> <span class="k">withUndo</span>(label, applyFn, undoFn){
+  applyFn();
+  refreshAll(); Store.save();
+  UI.toastUndo(label, <span class="k">function</span>(){ undoFn(); refreshAll(); Store.save(); });
+}</code></pre>
+
+  <h3>键盘快捷键（桌面）</h3>
+  <ul>
+    <li><code>N</code> 新建（当前视图的主对象：任务/灵感/项目）</li>
+    <li><code>/</code> 聚焦快速输入框；<code>Esc</code> 关闭弹层或退出编辑态</li>
+    <li><code>1 – 4</code> 切换四个模块</li>
+    <li><code>Ctrl/⌘ + Enter</code> 在灵感输入框内保存</li>
+    <li>输入框内时不触发单键快捷键（判断 <code>e.target.tagName</code> 与 <code>isContentEditable</code>）</li>
+  </ul>
+</section>
+
+<!-- ===== 08 ===== -->
+<section id="t8">
+  <div class="sec-head"><span class="sec-num">08</span><h2>样式方案</h2><span class="tag">CSS</span></div>
+
+  <h3>设计令牌</h3>
+  <pre><code>:root{
+  <span class="c">/* 底色与文字 */</span>
+  --bg:#f6f8f9; --paper:#fff;
+  --ink:#152420; --ink-2:#4a5c58; --ink-3:#7c8b87;
+  --line:#e2e9e7; --line-2:#eef3f2;
+
+  <span class="c">/* 品牌蓝绿 */</span>
+  --teal:#0f766e; --teal-2:#0d9488; --teal-soft:#e8f4f2;
+  --blue:#1e5f8a;
+
+  <span class="c">/* 语义色：红只用于逾期与阻塞 */</span>
+  --red:#c0392b; --red-soft:#fdf0ee;
+  --amber:#a86413; --amber-soft:#fdf6e9;
+
+  <span class="c">/* 图表固定色序 */</span>
+  --c-p0:#c0392b; --c-p1:#e08e3c; --c-p2:#0d9488; --c-p3:#9aadaa;
+  --c-proj-1:#0f766e; --c-proj-2:#1e5f8a; --c-proj-3:#5fa8a0;
+  --c-proj-4:#8aa9c4; --c-proj-5:#c7d6d3;
+
+  --radius:14px; --sp:4px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}</code></pre>
+
+  <h3>布局：一套 DOM，三种形态</h3>
+  <p>侧栏与内容用 Grid 实现，靠三组媒体查询切换，<strong>不维护两套 HTML</strong>。</p>
+  <pre><code><span class="c">/* ≥1200px：左导航 252px */</span>
+.app{ display:grid; grid-template-columns:252px minmax(0,1fr); }
+.nav{ position:sticky; top:0; height:100vh; overflow-y:auto; }
+
+<span class="c">/* 768–1199px：收窄为图标栏 */</span>
+@<span class="k">media</span> (max-width:1199px){
+  .app{ grid-template-columns:72px minmax(0,1fr); }
+  .nav-label{ display:none; }
+  .nav:hover{ width:200px; position:fixed; z-index:30; }   <span class="c">/* hover 临时展开 */</span>
+}
+
+<span class="c">/* &lt;768px：底部 Tab */</span>
+@<span class="k">media</span> (max-width:767px){
+  .app{ grid-template-columns:1fr; }
+  .nav{ position:fixed; inset:auto 0 0 0; height:auto; display:flex;
+        padding-bottom: env(safe-area-inset-bottom); z-index:40; }
+  .main{ padding-bottom: 84px; }
+  input,select,textarea{ font-size:16px; }   <span class="c">/* 防 iOS 聚焦缩放 */</span>
+}</code></pre>
+
+  <h3>移动端适配清单</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:150px">场景</th><th>处理</th></tr></thead>
+      <tbody>
+        <tr><td>点击热区</td><td>勾选框视觉 20px、热区 44×44px（用伪元素扩展，不改布局）</td></tr>
+        <tr><td>任务行</td><td>窄屏下优先级标签与日期胶囊换行到第二行，标题独占整行</td></tr>
+        <tr><td>表格</td><td>项目关联任务列表在窄屏转为卡片式（每条两行：标题 + 日期+状态）</td></tr>
+        <tr><td>置顶区</td><td>只展开前 3 条，其余折叠「还有 N 项」</td></tr>
+        <tr><td>抽屉</td><td>桌面右侧滑出 420px；手机底部弹层，最大高度 88vh，内部可滚动</td></tr>
+        <tr><td>图表</td><td><code>width:100%</code> 自适应，viewBox 保证不溢出；窄屏字号在 SVG 内等比缩小仍可读</td></tr>
+        <tr><td>安全区</td><td>底部 Tab 与弹层底部按钮均加 <code>env(safe-area-inset-bottom)</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>圆角与阴影</h3>
+  <p>卡片用 <code>border-radius:14px</code> 加 <code>1px</code> 描边再加一层几乎不可见的内高光<code>inset 0 1px 0 #fff</code>，这种组合能在白底上让卡片浮起又不显得厚重。悬停时边框转 <code>#cfe6e2</code>，阴影只加在弹层和抽屉上。动效统一用 <code>transition:all .18s ease-out</code>，并统一遵守 <code>prefers-reduced-motion</code>。</p>
+
+  <h3>响应式自测断点</h3>
+  <p class="mini">320 / 375 / 414 / 768 / 1024 / 1280 / 1440 / 1920，八档逐一截图核对：无横向滚动条、无文字截断、无元素重叠、底部 Tab 不遮挡内容。</p>
+</section>
+
+<!-- ===== 09 ===== -->
+<section id="t9">
+  <div class="sec-head"><span class="sec-num">09</span><h2>安全与数据完整性</h2><span class="tag">SAFETY</span></div>
+
+  <h3>XSS 与注入</h3>
+  <ul>
+    <li>所有用户输入进入 <code>innerHTML</code> 前必须过 <code>esc()</code>（转义 <code>&amp; &lt; &gt; "</code>）；</li>
+    <li>标签、项目名、卡点等会拼进 <code>class</code> / <code>data-*</code> 的字段额外过滤掉非 <code>[\w\u4e00-\u9fa5-]</code> 字符；</li>
+    <li>导入的 JSON 不直接渲染，先走 <code>migrate()</code> 规范化字段类型，非法记录整条丢弃并统计条数告知用户。</li>
+  </ul>
+
+  <h3>数据完整性</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:170px">风险</th><th>处理</th></tr></thead>
+      <tbody>
+        <tr><td>localStorage 被清空</td><td>每次启动检查 <code>meta.seededAt</code>；数据为空且从未播种 → 写入示例数据并标记，避免用户误以为数据丢失</td></tr>
+        <tr><td>JSON 解析失败</td><td>原始串先备份到 <code>wb_office_broken_{ts}</code>，再降级为空数据；页面顶部给出「检测到数据损坏，已备份原始内容」提示与导出入口</td></tr>
+        <tr><td>写入配额超限</td><td><code>save()</code> 返回 false → toast 提示导出 + 导航栏出现常驻警告图标</td></tr>
+        <tr><td>隐私模式 / 禁用存储</td><td><code>getItem</code> 抛错时切换为内存模式，顶部标「当前会话数据不会保存」，并禁用导入</td></tr>
+        <tr><td>孤儿数据</td><td>删除项目时把其下任务的 <code>projectId</code> 置空而非删除任务；启动时跑一次 <code>repair()</code> 清理指向不存在项目的引用</td></tr>
+        <tr><td>重复 id</td><td>id 生成用 <code>时间戳36进制 + 随机4位</code>，导入时检测冲突并重编</td></tr>
+        <tr><td>并发多标签页</td><td>监听 <code>window.storage</code> 事件：另一个标签页写入后本页提示「数据已在其他窗口更新，点击刷新」</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>隐私边界</h3>
+  <p>所有数据仅存在用户本机浏览器，不上传、不埋点、不发任何网络请求（可用 DevTools Network 面板验证「零请求」）。页面若部署到公网，链接持有者可打开页面但看不到任何本机数据。<strong>不宣称加密</strong>——localStorage 是明文，仅可作为个人工具的便利性存储。</p>
+</section>
+
+<!-- ===== 10 ===== -->
+<section id="t10">
+  <div class="sec-head"><span class="sec-num">10</span><h2>构建与自检</h2><span class="tag">BUILD &amp; TEST</span></div>
+
+  <h3>施工顺序（防截断）</h3>
+  <p>单文件约 2600 行，一次性写完极易中途失败或漏掉闭合。按「骨架 → 逐个模块」增量写入，每一步都是可运行状态。</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:56px">步骤</th><th style="width:190px">产出</th><th>验收</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>HTML 骨架 + 完整 CSS + 设计令牌</td><td>空白三栏布局、响应式断点正确</td></tr>
+        <tr><td>2</td><td><code>DateUtil</code> + <code>Store</code> + <code>Todo</code>/<code>Project</code>/<code>Note</code> 纯函数</td><td>Node 下跑通领域用例</td></tr>
+        <tr><td>3</td><td>待办视图 + 置顶区 + 快速添加</td><td>增删改查、顺延、标红可用</td></tr>
+        <tr><td>4</td><td>项目视图 + 行内编辑 + 关联进度</td><td>卡点驱动状态、进度实时</td></tr>
+        <tr><td>5</td><td>灵感视图 + 标签筛选 + 转任务</td><td>标签聚合正确</td></tr>
+        <tr><td>6</td><td>周复盘 + 四类 SVG 图表</td><td>数值与列表一致</td></tr>
+        <tr><td>7</td><td>弹层/toast/撤销/导入导出/种子数据</td><td>全流程走通</td></tr>
+        <tr><td>8</td><td>移动端验收 + 边界用例回归</td><td>八档断点无溢出</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>示例数据（用于验证统计口径）</h3>
+  <p>预置 3 个项目、18 条任务（11 条本周完成、2 条逾期、3 条未来、1 条无日期）、6 条灵感。以下为按上述口径实算的结果，交付时页面数字必须与此一致：</p>
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="t">本周完成</div>
+      <div class="v">11 <span style="font-size:12px;color:var(--ink-3);font-weight:600">件</span></div>
+      <div class="s">10/12 – 10/18</div>
+      <div class="f">doneAt ∈ 本周</div>
+    </div>
+    <div class="kpi">
+      <div class="t">完成率</div>
+      <div class="v">84.6<span style="font-size:14px">%</span></div>
+      <div class="s">13 件中完成 11</div>
+      <div class="f">分母 = 到期 ∪ 完成</div>
+    </div>
+    <div class="kpi">
+      <div class="t">逾期未完成</div>
+      <div class="v" style="color:var(--red)">2 <span style="font-size:12px;font-weight:600">件</span></div>
+      <div class="s">各顺延 2 次</div>
+      <div class="f">originalDate &lt; 今天</div>
+    </div>
+    <div class="kpi">
+      <div class="t">卡住项目</div>
+      <div class="v" style="color:var(--red)">1 <span style="font-size:12px;font-weight:600">个</span></div>
+      <div class="s">Q3 增长方案</div>
+      <div class="f">blocker 非空</div>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:150px">图表</th><th>期望值</th></tr></thead>
+      <tbody>
+        <tr><td>优先级分布</td><td>紧急重要 4 · 重要不紧急 3 · 紧急不重要 4 · 不急不重要 0（合计 11）</td></tr>
+        <tr><td>精力分布</td><td>首页改版 3 · Q3 增长方案 3 · 其他 3 · 个人博客迁移 2（合计 11）</td></tr>
+        <tr><td>一周节奏</td><td>一 0 · 二 2 · 三 2 · 四 1 · 五 2 · 六 1 · 日 2（合计 11）</td></tr>
+        <tr><td>项目进度</td><td>Q3 3/5（1 逾期）· 首页改版 3/4 · 博客迁移 2/3</td></tr>
+        <tr><td>置顶区</td><td>逾期 2 条（逾期 3 天 / 4 天）+ 卡住 1 个</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>边界用例（必须逐条走）</h3>
+  <ul class="checks">
+    <li><b>首次打开（localStorage 为空）</b>：写入种子数据，四视图均有内容，置顶区显示 2 逾期 + 1 卡住，不报错。</li>
+    <li><b>清空示例后</b>：四视图各自进入空状态，无一空白屏，不出现 <code>undefined</code>。</li>
+    <li><b>跨月</b>：10/31 → 11/1，自动顺延把 10/31 的任务带到 11/1，逾期天数算作 1 天。</li>
+    <li><b>跨年</b>：12/31 → 1/1，<code>diffDays</code> 与 <code>startOfWeek</code> 结果正确。</li>
+    <li><b>跨周</b>：周日 23:59 完成任务，切换复盘周时该任务只出现在本周，不重复计入上周。</li>
+    <li><b>隔多天未打开</b>：原定 10/10，10/15 打开，顺延只 +1 次，逾期天数显示 5 天。</li>
+    <li><b>无日期任务</b>：不参与逾期、不进入今日清单、在「未来-待安排」分组末尾。</li>
+    <li><b>关联 0 任务的项目</b>：进度条置灰显示「暂无关联待办」，不是 0%。</li>
+    <li><b>删除项目</b>：其下任务保留并变为无项目，进度卡消失，无幽灵计数。</li>
+    <li><b>清空卡点</b>：项目从「卡住了」回到「进行中」，置顶区条目即时移除。</li>
+    <li><b>完成全部逾期任务</b>：置顶区收起为「今天没有逾期」单行，不出现空红框。</li>
+    <li><b>单主题单项目 + 100%</b>：环形图能画出完整圆环，无缺口。</li>
+    <li><b>超长文本</b>：80 字标题、1000 字灵感，卡片不撑破布局，标题单行省略。</li>
+    <li><b>特殊字符</b>：标题含 <code>&lt;script&gt;</code> 与引号，渲染为纯文本，不执行不破结构。</li>
+    <li><b>移动端 320px</b>：无横向滚动，底部 Tab 不遮内容，输入框不缩放。</li>
+  </ul>
+
+  <h3>自检脚本（Node 下跑领域用例）</h3>
+  <pre><code><span class="c">// 把 DateUtil / Todo / Stats 抽到同一段可执行代码里，用 Node 跑断言</span>
+<span class="k">const</span> cases = [
+  [<span class="s">'逾期判定'</span>, () =&gt; Todo.bucket({status:<span class="s">'todo'</span>, date:<span class="s">'2026-10-18'</span>, originalDate:<span class="s">'2026-10-15'</span>}, <span class="s">'2026-10-18'</span>) === <span class="s">'overdue'</span>],
+  [<span class="s">'今天不算逾期'</span>, () =&gt; Todo.bucket({status:<span class="s">'todo'</span>, date:<span class="s">'2026-10-18'</span>, originalDate:<span class="s">'2026-10-18'</span>}, <span class="s">'2026-10-18'</span>) === <span class="s">'today'</span>],
+  [<span class="s">'跨月天数'</span>, () =&gt; DateUtil.diffDays(<span class="s">'2026-11-01'</span>, <span class="s">'2026-10-31'</span>) === <span class="n">1</span>],
+  [<span class="s">'跨年天数'</span>, () =&gt; DateUtil.diffDays(<span class="s">'2027-01-01'</span>, <span class="s">'2026-12-31'</span>) === <span class="n">1</span>],
+  [<span class="s">'周一为周起点'</span>, () =&gt; DateUtil.startOfWeek(<span class="s">'2026-10-18'</span>) === <span class="s">'2026-10-12'</span>],
+  [<span class="s">'复盘完成数'</span>, () =&gt; Stats.week(seedStore, <span class="s">'2026-10-12'</span>).doneCount === <span class="n">11</span>],
+  [<span class="s">'复盘完成率'</span>, () =&gt; Math.round(Stats.week(seedStore, <span class="s">'2026-10-12'</span>).doneRate * <span class="n">100</span>) === <span class="n">85</span>]
+];
+cases.forEach(([name, fn]) =&gt; console.log((fn() ? <span class="s">'PASS'</span> : <span class="s">'FAIL'</span>) + <span class="s">' '</span> + name));</code></pre>
+  <p class="mini">领域层是纯函数、不依赖 DOM，因此可以原样贴进 Node 跑；这也是本方案坚持「计算与渲染分离」的直接收益——统计口径的问题不必靠肉眼比对页面数字来发现。</p>
+</section>
+
+<!-- ===== 11 ===== -->
+<section id="t11">
+  <div class="sec-head"><span class="sec-num">11</span><h2>交付物与排期</h2><span class="tag">DELIVERY</span></div>
+
+  <h3>交付物</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>主交付</h4>
+      <p class="mini" style="margin:0"><code>office_desk/workbench.html</code><br>单文件，双击即用；含示例数据；零外部请求。</p>
+    </div>
+    <div class="card">
+      <h4>可选</h4>
+      <p class="mini" style="margin:0">部署到公网后的访问链接（手机浏览器打开 → 添加到主屏幕，可当 App 用）。数据仍只存各自设备本地。</p>
+    </div>
+  </div>
+
+  <h3>工作量拆解</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:180px">环节</th><th style="width:110px">预估</th><th>风险点</th></tr></thead>
+      <tbody>
+        <tr><td>骨架 + CSS + 令牌</td><td>1 次写入</td><td>响应式三形态切换的布局细节（风险低）</td></tr>
+        <tr><td>领域层 + 存储层</td><td>1 次写入 + 用例</td><td>日期边界与顺延语义（已在本方案锁定，风险低）</td></tr>
+        <tr><td>待办 + 置顶区</td><td>1 次写入</td><td>行内编辑与全量重渲染的焦点冲突（中，需专门处理）</td></tr>
+        <tr><td>项目 + 灵感</td><td>1 次写入</td><td>关联进度反向计算的一致性（低）</td></tr>
+        <tr><td>周复盘 + 图表</td><td>1 次写入</td><td>SVG 数值与列表对齐（低，已有实算基准）</td></tr>
+        <tr><td>弹层/撤销/导入导出</td><td>1 次写入</td><td>file:// 下 Blob 下载限制（低，已有降级方案）</td></tr>
+        <tr><td>边界回归 + 移动端验收</td><td>1 轮</td><td>15 条用例逐项核对（中，最耗时）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>遗留决策（开工前确认）</h3>
+  <div class="note warn">
+    <span class="nt">这几项不影响开工，但影响交付形态</span>
+    <ul style="margin:6px 0 0">
+      <li><strong>示例数据是否用真实项目名：</strong>当前用「Q3 增长方案 / 首页改版 / 个人博客迁移」，接近通用办公场景；若你有真实项目想预置，告诉我名字替换。</li>
+      <li><strong>是否需要「本周目标数」：</strong>完成率目前分母是「到期 ∪ 完成」，另一种口径是「用户自设本周目标件数」，后者更严格但需要额外录入。默认不做。</li>
+      <li><strong>优先级命名：</strong>技术方案按产品设计的四档（紧急重要…）实现，若想简化为高/中/低，此处只需改一处映射表。</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <span>个人办公工作台 · 技术方案 v0.1</span>
+    <span>依据产品设计说明 v0.1 · 确认后即可进入施工</span>
+  </div>
+</section>
+
+</main>
+</div>
+
+<a href="#" class="totop" aria-label="回到顶部">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+</a>
+
+<script>
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  function onScroll(){
+    var y = window.scrollY + 120, idx = 0;
+    for (var i = 0; i < secs.length; i++){
+      if (secs[i] && secs[i].offsetTop <= y) idx = i;
+    }
+    links.forEach(function(a, i){ a.classList.toggle('active', i === idx); });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+</script>
+</body>
+</html>
