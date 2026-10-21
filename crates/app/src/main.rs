@@ -1,5 +1,8 @@
 //! 办公工作台入口：读取配置 → 打开 SQLite → 首次种子 → 跨天自动顺延 → 主窗口。
 
+// 发布版不弹控制台窗口（调试版保留，便于看日志）
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod config;
 mod seed;
 mod state;

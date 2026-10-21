@@ -11,15 +11,33 @@ use anyhow::{Context, Result};
 use office_desk_core::domain::types::DataSnapshot;
 use rusqlite::Connection;
 
-/// 数据目录：`%APPDATA%\office_desk`
+/// 绿色版标记文件：与 exe 同目录存在时，数据写到 exe 旁的 `data` 目录。
+pub const PORTABLE_FLAG: &str = "portable.flag";
+
+/// 解析数据目录：
+/// - exe 同目录有 `portable.flag` → `<exe 目录>\data`（绿色版，数据跟程序走）
+/// - 否则 → `%APPDATA%\office_desk`
 pub fn data_dir() -> PathBuf {
-    match std::env::var("APPDATA") {
-        Ok(appdata) => Path::new(&appdata).join("office_desk"),
-        Err(_) => PathBuf::from("."),
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(Path::to_path_buf));
+    let appdata = std::env::var("APPDATA").ok();
+    resolve_data_dir(exe_dir.as_deref(), appdata.as_deref())
+}
+
+fn resolve_data_dir(exe_dir: Option<&Path>, appdata: Option<&str>) -> PathBuf {
+    if let Some(dir) = exe_dir {
+        if dir.join(PORTABLE_FLAG).is_file() {
+            return dir.join("data");
+        }
+    }
+    match appdata {
+        Some(appdata) => Path::new(appdata).join("office_desk"),
+        None => PathBuf::from("."),
     }
 }
 
-/// 数据库文件：`%APPDATA%\office_desk\office_desk.db`
+/// 数据库文件：数据目录下的 `office_desk.db`
 pub fn db_path() -> PathBuf {
     data_dir().join("office_desk.db")
 }
@@ -203,5 +221,33 @@ mod tests {
         let st = Storage::open_memory().unwrap();
         let loaded = st.load().unwrap();
         assert_eq!(loaded, DataSnapshot::new());
+    }
+
+    #[test]
+    fn portable_flag_switches_data_dir() {
+        let dir = std::env::temp_dir().join(format!(
+            "office_desk_portable_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // 没有标记文件：走 APPDATA
+        assert_eq!(
+            resolve_data_dir(Some(&dir), Some("C:\\appdata")),
+            Path::new("C:\\appdata").join("office_desk")
+        );
+
+        // 放了标记文件：数据落在 exe 同级的 data 目录
+        std::fs::write(dir.join(PORTABLE_FLAG), b"").unwrap();
+        assert_eq!(
+            resolve_data_dir(Some(&dir), Some("C:\\appdata")),
+            dir.join("data")
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

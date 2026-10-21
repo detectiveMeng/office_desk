@@ -1,4 +1,5 @@
-//! 应用配置：`%APPDATA%\office_desk\config.toml`，当前只有主题一项。
+//! 应用配置：数据目录下的 `config.toml`，当前只有主题一项。
+//! 数据目录由 `storage::data_dir` 决定：安装版在 `%APPDATA%\office_desk`，绿色版在 exe 旁的 `data`。
 
 use std::path::PathBuf;
 
