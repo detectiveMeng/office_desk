@@ -30,3 +30,7 @@ toml = "0.8"
 
 # 错误处理
 anyhow = "1"
+
+[build-dependencies]
+# 把 assets/icon.rc（窗口 / 任务栏 / exe 图标）编译并链接进二进制
+embed-resource = "3"

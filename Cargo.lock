@@ -4359,6 +4359,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "embed-resource",
  "gpui-kit",
  "office_desk_core",
  "rusqlite",
