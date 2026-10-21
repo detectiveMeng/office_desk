@@ -24,28 +24,17 @@ impl Workspace {
             .flex_1()
             .h_full()
             .overflow_y_scroll()
-            .px(px(32.))
-            .py(px(26.))
+            .px(px(24.))
+            .pt(px(18.))
+            .pb(px(28.))
             .flex()
             .flex_col()
-            .gap(px(16.))
+            .gap(px(14.))
             .child(
                 div()
-                    .flex()
-                    .flex_col()
-                    .gap(px(4.))
-                    .child(
-                        div()
-                            .text_size(px(22.))
-                            .font_weight(FontWeight::BOLD)
-                            .child("项目跟进"),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.))
-                            .text_color(rgb(p.ink3))
-                            .child("卡点驱动状态（不手动选「卡住」），进度来自关联待办"),
-                    ),
+                    .text_size(px(12.))
+                    .text_color(rgb(p.ink3))
+                    .child("卡点驱动状态（不手动选「卡住」），进度来自关联待办"),
             )
             .child(
                 div()

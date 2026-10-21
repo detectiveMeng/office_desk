@@ -652,15 +652,35 @@ impl Workspace {
             .h(px(34.))
             .w_full()
             .flex_shrink_0()
+            .border_b_1()
+            .border_color(rgb(palette.line))
             .child(
                 div()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .gap(px(7.))
+                    .pl(px(16.))
                     .w(px(232.))
                     .h_full()
                     .flex_shrink_0()
+                    .overflow_hidden()
                     .bg(rgb(palette.paper))
                     .border_r_1()
                     .border_color(rgb(palette.line))
-                    .window_control_area(WindowControlArea::Drag),
+                    .window_control_area(WindowControlArea::Drag)
+                    .child(
+                        div()
+                            .text_size(px(13.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("办公工作台"),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(10.))
+                            .text_color(rgb(palette.ink3))
+                            .child("Workbench"),
+                    ),
             )
             .child(
                 div()
@@ -671,6 +691,21 @@ impl Workspace {
                     .items_center()
                     .justify_end()
                     .bg(rgb(palette.bg))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .h_full()
+                            .pl(px(24.))
+                            .flex_shrink_0()
+                            .window_control_area(WindowControlArea::Drag)
+                            .child(
+                                div()
+                                    .text_size(px(14.))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(self.page.title()),
+                            ),
+                    )
                     .child(
                         div()
                             .flex_1()
@@ -761,27 +796,9 @@ impl Workspace {
             .border_r_1()
             .border_color(rgb(palette.line))
             .px(px(16.))
-            .py(px(20.))
+            .pt(px(18.))
+            .pb(px(14.))
             .gap(px(6.))
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap(px(2.))
-                    .mb(px(18.))
-                    .child(
-                        div()
-                            .text_size(px(15.))
-                            .font_weight(FontWeight::BOLD)
-                            .child("办公工作台"),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(11.))
-                            .text_color(rgb(palette.ink3))
-                            .child("Workbench"),
-                    ),
-            )
             .children(nav)
             .child(div().flex_1())
             .child(

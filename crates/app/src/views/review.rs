@@ -266,11 +266,12 @@ impl Workspace {
             .flex_1()
             .h_full()
             .overflow_y_scroll()
-            .px(px(32.))
-            .py(px(26.))
+            .px(px(24.))
+            .pt(px(18.))
+            .pb(px(28.))
             .flex()
             .flex_col()
-            .gap(px(16.))
+            .gap(px(14.))
             .child(
                 div()
                     .flex()
@@ -278,23 +279,11 @@ impl Workspace {
                     .justify_between()
                     .child(
                         div()
-                            .flex()
-                            .flex_col()
-                            .gap(px(4.))
-                            .child(
-                                div()
-                                    .text_size(px(22.))
-                                    .font_weight(FontWeight::BOLD)
-                                    .child("每周复盘"),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(12.))
-                                    .text_color(rgb(p.ink3))
-                                    .child(SharedString::from(format!(
-                                        "{week_label} · 分母 = 本周到期 ∪ 本周完成"
-                                    ))),
-                            ),
+                            .text_size(px(12.))
+                            .text_color(rgb(p.ink3))
+                            .child(SharedString::from(format!(
+                                "{week_label} · 分母 = 本周到期 ∪ 本周完成"
+                            ))),
                     )
                     .child(
                         div()

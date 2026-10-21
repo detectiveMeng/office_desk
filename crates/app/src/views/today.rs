@@ -52,7 +52,7 @@ impl Workspace {
 
         let mut children: Vec<AnyElement> = Vec::new();
 
-        /* 标题 */
+        /* 页头：元信息 + 主操作（页面名已在标题栏） */
         children.push(
             div()
                 .flex()
@@ -60,26 +60,14 @@ impl Workspace {
                 .justify_between()
                 .child(
                     div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(4.))
-                        .child(
-                            div()
-                                .text_size(px(22.))
-                                .font_weight(FontWeight::BOLD)
-                                .child("今日待办"),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(12.))
-                                .text_color(rgb(p.ink3))
-                                .child(SharedString::from(format!(
-                                    "{} {} · {} 件待处理",
-                                    today.format("%Y-%m-%d"),
-                                    weekday_cn(today),
-                                    overdue.len() + today_list.len()
-                                ))),
-                        ),
+                        .text_size(px(12.))
+                        .text_color(rgb(p.ink3))
+                        .child(SharedString::from(format!(
+                            "{} {} · {} 件待处理",
+                            today.format("%Y-%m-%d"),
+                            weekday_cn(today),
+                            overdue.len() + today_list.len()
+                        ))),
                 )
                 .child(
                     ghost_button("全部顺延到明天", p.red, &p)
@@ -342,11 +330,12 @@ impl Workspace {
             .flex_1()
             .h_full()
             .overflow_y_scroll()
-            .px(px(32.))
-            .py(px(26.))
+            .px(px(24.))
+            .pt(px(18.))
+            .pb(px(28.))
             .flex()
             .flex_col()
-            .gap(px(16.))
+            .gap(px(14.))
             .children(children)
     }
 

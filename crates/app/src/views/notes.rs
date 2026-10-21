@@ -111,28 +111,17 @@ impl Workspace {
             .flex_1()
             .h_full()
             .overflow_y_scroll()
-            .px(px(32.))
-            .py(px(26.))
+            .px(px(24.))
+            .pt(px(18.))
+            .pb(px(28.))
             .flex()
             .flex_col()
-            .gap(px(16.))
+            .gap(px(14.))
             .child(
                 div()
-                    .flex()
-                    .flex_col()
-                    .gap(px(4.))
-                    .child(
-                        div()
-                            .text_size(px(22.))
-                            .font_weight(FontWeight::BOLD)
-                            .child("灵感速记"),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.))
-                            .text_color(rgb(p.ink3))
-                            .child("先记下来，再决定做不做；一条灵感可以一键转成今天的任务"),
-                    ),
+                    .text_size(px(12.))
+                    .text_color(rgb(p.ink3))
+                    .child("先记下来，再决定做不做；一条灵感可以一键转成今天的任务"),
             )
             .child(
                 div()
