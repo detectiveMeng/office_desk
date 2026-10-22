@@ -156,6 +156,31 @@ impl Workspace {
                             })),
                     ),
             )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(
+                        div()
+                            .text_size(px(11.))
+                            .text_color(rgb(p.ink3))
+                            .child("转任务时归入"),
+                    )
+                    .child({
+                        let label = self
+                            .default_project
+                            .as_deref()
+                            .and_then(|id| self.project_name(id))
+                            .map(str::to_string)
+                            .unwrap_or_else(|| "不归项目".to_string());
+                        ghost_button(label, p.ink2, &p)
+                            .max_w(px(180.))
+                            .text_ellipsis()
+                            .id("notes-project")
+                            .on_click(cx.listener(|this, _, _, cx| this.cycle_default_project(cx)))
+                    }),
+            )
             .child(div().flex().flex_wrap().gap(px(6.)).children(chips))
             .child(
                 div()

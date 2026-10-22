@@ -299,6 +299,19 @@ impl Workspace {
                             cx.notify();
                         })),
                 )
+                .child({
+                    let label = self
+                        .default_project
+                        .as_deref()
+                        .and_then(|id| self.project_name(id))
+                        .map(|name| format!("归入 {name}"))
+                        .unwrap_or_else(|| "不归项目".to_string());
+                    ghost_button(label, p.ink2, &p)
+                        .max_w(px(160.))
+                        .text_ellipsis()
+                        .id("quick-project")
+                        .on_click(cx.listener(|this, _, _, cx| this.cycle_default_project(cx)))
+                })
                 .child(
                     primary_button("＋ 加任务", &p)
                         .id("quick-add")
@@ -508,6 +521,7 @@ impl Workspace {
         let id_toggle = todo.id.clone();
         let id_postpone = todo.id.clone();
         let id_priority = todo.id.clone();
+        let id_project = todo.id.clone();
         let id_delete = todo.id.clone();
         let confirming_delete = self.confirm_delete.as_deref() == Some(todo.id.as_str());
 
@@ -568,15 +582,28 @@ impl Workspace {
                         )
                     }),
             )
-            .when_some(project, |el, name| {
-                el.child(
-                    div()
-                        .flex_none()
-                        .text_size(px(11.))
-                        .text_color(rgb(p.ink3))
-                        .child(SharedString::from(name)),
-                )
-            })
+            .child(
+                div()
+                    .cursor_pointer()
+                    .flex_none()
+                    .px(px(6.))
+                    .py(px(2.))
+                    .rounded(px(5.))
+                    .text_size(px(11.))
+                    .text_ellipsis()
+                    .when(project.is_some(), |el| {
+                        el.bg(rgb(p.line2)).text_color(rgb(p.ink2))
+                    })
+                    .when(project.is_none(), |el| el.text_color(rgb(p.ink3)))
+                    .hover(|el| el.text_color(rgb(p.teal)))
+                    .child(SharedString::from(
+                        project.unwrap_or_else(|| "＋项目".to_string()),
+                    ))
+                    .id(SharedString::from(format!("proj-{id_project}")))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.cycle_todo_project(&id_project, cx)
+                    })),
+            )
             .child(
                 priority_pill(todo.priority, &p)
                     .cursor_pointer()

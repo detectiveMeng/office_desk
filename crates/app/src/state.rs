@@ -142,6 +142,8 @@ pub struct Workspace {
     pub(crate) today: NaiveDate,
     pub(crate) quick_input: Entity<InputState>,
     pub(crate) quick_priority: u8,
+    /// 快速添加 / 灵感转待办时默认归入的项目（None = 不归入）
+    pub(crate) default_project: Option<String>,
     pub(crate) note_input: Entity<InputState>,
     /// 灵感行内编辑复用的输入框
     pub(crate) note_edit_input: Entity<InputState>,
@@ -293,6 +295,7 @@ impl Workspace {
             today,
             quick_input,
             quick_priority: 1,
+            default_project: None,
             note_input,
             note_edit_input,
             editing_note: None,
@@ -449,7 +452,7 @@ impl Workspace {
             priority: self.quick_priority,
             date: Some(self.today),
             original_date: Some(self.today),
-            project_id: None,
+            project_id: self.default_project.clone(),
             status: TodoStatus::Todo,
             done_at: None,
             note: String::new(),
@@ -583,6 +586,32 @@ impl Workspace {
     pub(crate) fn cycle_priority(&mut self, id: &str, cx: &mut Context<Self>) {
         if let Some(todo) = self.data.todos.iter_mut().find(|t| t.id == id) {
             todo.priority = (todo.priority + 1) % 4;
+        }
+        self.commit(cx);
+    }
+
+    /// 切换快速添加 / 灵感转待办的默认项目：无 → 项目 1 → 项目 2 → … → 无
+    pub(crate) fn cycle_default_project(&mut self, cx: &mut Context<Self>) {
+        let next = next_project(self.default_project.as_deref(), &self.data.projects);
+        self.default_project = next;
+        self.notice = Some(match self.default_project.as_deref().and_then(|id| self.project_name(id)) {
+            Some(name) => format!("新任务将归入「{name}」"),
+            None => "新任务不归入项目".to_string(),
+        });
+        cx.notify();
+    }
+
+    /// 待办行内切换所属项目：无 → 项目 1 → 项目 2 → … → 无
+    pub(crate) fn cycle_todo_project(&mut self, id: &str, cx: &mut Context<Self>) {
+        let current = self
+            .data
+            .todos
+            .iter()
+            .find(|t| t.id == id)
+            .and_then(|t| t.project_id.clone());
+        let next = next_project(current.as_deref(), &self.data.projects);
+        if let Some(todo) = self.data.todos.iter_mut().find(|t| t.id == id) {
+            todo.project_id = next;
         }
         self.commit(cx);
     }
@@ -735,7 +764,7 @@ impl Workspace {
             priority: 1,
             date: Some(self.today),
             original_date: Some(self.today),
-            project_id: None,
+            project_id: self.default_project.clone(),
             status: TodoStatus::Todo,
             done_at: None,
             note: String::new(),
@@ -824,6 +853,9 @@ impl Workspace {
         self.project_inputs.remove(id);
         if self.project_focus.as_deref() == Some(id) {
             self.project_focus = None;
+        }
+        if self.default_project.as_deref() == Some(id) {
+            self.default_project = None;
         }
         self.notice = Some("已删除项目，关联待办已解除关联".into());
         self.commit(cx);
@@ -940,6 +972,7 @@ impl Workspace {
         self.week_offset = 0;
         self.project_focus = None;
         self.pinned_expanded = false;
+        self.default_project = None;
         self.done_range = DoneRange::Week;
         for input in &self.review_inputs {
             input.update(cx, |state, cx| state.set_value("", window, cx));
@@ -1046,6 +1079,7 @@ impl Workspace {
         self.week_offset = 0;
         self.project_focus = None;
         self.pinned_expanded = false;
+        self.default_project = None;
         self.done_range = DoneRange::Week;
         self.clear_confirm = false;
         let week_start = start_of_week(self.today);
@@ -1120,6 +1154,21 @@ fn cleared_snapshot(today: NaiveDate, now: NaiveDateTime) -> DataSnapshot {
     data.seeded_at = Some(now);
     data.last_run_date = Some(today);
     data
+}
+
+/// 关联项目的循环顺序：无 → 第一个项目 → 第二个 → … → 无。
+/// 当前项目已被删除（不在列表里）时也回到「无」。
+pub(crate) fn next_project(current: Option<&str>, projects: &[Project]) -> Option<String> {
+    match current {
+        None => projects.first().map(|p| p.id.clone()),
+        Some(cur) => {
+            let index = projects.iter().position(|p| p.id == cur);
+            match index {
+                Some(i) if i + 1 < projects.len() => Some(projects[i + 1].id.clone()),
+                _ => None,
+            }
+        }
+    }
 }
 
 /// 从 `#tag` 形式的文本里解析标签（去重、去掉尾部标点）。
@@ -1608,7 +1657,7 @@ mod tests {
     use chrono::NaiveDate;
     use office_desk_core::domain::types::{DataSnapshot, ProjectStatus};
 
-    use super::{cleared_snapshot, new_project, DoneRange};
+    use super::{cleared_snapshot, new_project, next_project, DoneRange};
 
     #[test]
     fn cleared_snapshot_is_empty_but_keeps_seed_marker() {
@@ -1666,6 +1715,25 @@ mod tests {
             Some((today + chrono::Duration::days(1)).and_hms_opt(9, 0, 0).unwrap()),
             today
         ));
+    }
+
+    #[test]
+    fn next_project_cycles_none_then_each_then_back() {
+        let now = NaiveDate::from_ymd_opt(2026, 10, 22)
+            .unwrap()
+            .and_hms_opt(9, 0, 0)
+            .unwrap();
+        let projects = vec![
+            new_project("p1".into(), "项目一".into(), now),
+            new_project("p2".into(), "项目二".into(), now),
+        ];
+
+        assert_eq!(next_project(None, &projects), Some("p1".into()));
+        assert_eq!(next_project(Some("p1"), &projects), Some("p2".into()));
+        assert_eq!(next_project(Some("p2"), &projects), None);
+        // 项目已被删除时回到「不归项目」
+        assert_eq!(next_project(Some("gone"), &projects), None);
+        assert_eq!(next_project(None, &[]), None);
     }
 
     #[test]
