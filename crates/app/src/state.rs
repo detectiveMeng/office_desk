@@ -64,6 +64,7 @@ pub struct Workspace {
     pub(crate) quick_input: Entity<InputState>,
     pub(crate) quick_priority: u8,
     pub(crate) note_input: Entity<InputState>,
+    pub(crate) project_input: Entity<InputState>,
     pub(crate) tag_filter: Option<String>,
     pub(crate) show_done: bool,
     pub(crate) week_offset: i32,
@@ -92,6 +93,9 @@ impl Workspace {
         });
         let note_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder("随手记一条灵感，可用 #标签 标记")
+        });
+        let project_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder("新项目名称，回车添加")
         });
 
         let review_inputs = [
@@ -128,6 +132,15 @@ impl Workspace {
             |this, input, event: &InputEvent, window, cx| {
                 if matches!(event, InputEvent::PressEnter { .. }) {
                     this.submit_note(input, window, cx);
+                }
+            },
+        ));
+        subscriptions.push(cx.subscribe_in(
+            &project_input,
+            window,
+            |this, input, event: &InputEvent, window, cx| {
+                if matches!(event, InputEvent::PressEnter { .. }) {
+                    this.submit_project(input, window, cx);
                 }
             },
         ));
@@ -199,6 +212,7 @@ impl Workspace {
             quick_input,
             quick_priority: 1,
             note_input,
+            project_input,
             tag_filter: None,
             show_done: false,
             week_offset: 0,
@@ -379,6 +393,59 @@ impl Workspace {
         });
         input.update(cx, |state, cx| state.set_value("", window, cx));
         self.flash("已记录灵感", cx);
+    }
+
+    /// 新增项目：三字段留空、状态进行中，立刻生成对应的行内编辑输入框
+    pub(crate) fn submit_project(
+        &mut self,
+        input: &Entity<InputState>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let name = input.read(cx).value().trim().to_string();
+        if name.is_empty() {
+            return;
+        }
+        let now = self.now();
+        let project = new_project(next_id("p"), name, now);
+        let pid = project.id.clone();
+
+        let current = cx.new(|cx| {
+            InputState::new(window, cx).placeholder("当前在推进什么")
+        });
+        let next = cx.new(|cx| {
+            InputState::new(window, cx).placeholder("下一步是什么")
+        });
+        let blocker = cx.new(|cx| {
+            InputState::new(window, cx).placeholder("卡在哪里（留空 = 进行中）")
+        });
+        for (field, entity) in [
+            (Field::Current, &current),
+            (Field::Next, &next),
+            (Field::Blocker, &blocker),
+        ] {
+            let pid = pid.clone();
+            self._subscriptions.push(cx.subscribe_in(
+                entity,
+                window,
+                move |this, _input, event: &InputEvent, _window, cx| {
+                    if matches!(event, InputEvent::PressEnter { .. } | InputEvent::Blur) {
+                        this.save_project_field(&pid, field, cx);
+                    }
+                },
+            ));
+        }
+        self.project_inputs.insert(
+            pid,
+            ProjectInputs {
+                current,
+                next,
+                blocker,
+            },
+        );
+        self.data.projects.push(project);
+        input.update(cx, |state, cx| state.set_value("", window, cx));
+        self.flash("已新增项目", cx);
     }
 
     pub(crate) fn toggle_pin(&mut self, id: &str, cx: &mut Context<Self>) {
@@ -584,6 +651,20 @@ fn cleared_snapshot(today: NaiveDate, now: NaiveDateTime) -> DataSnapshot {
     data.seeded_at = Some(now);
     data.last_run_date = Some(today);
     data
+}
+
+/// 新项目的初始形态：三个字段为空、进行中、没有卡点流水。
+fn new_project(id: String, name: String, now: NaiveDateTime) -> Project {
+    Project {
+        id,
+        name,
+        current: String::new(),
+        next: String::new(),
+        blocker: String::new(),
+        status: ProjectStatus::Active,
+        updated_at: now,
+        blocker_log: Vec::new(),
+    }
 }
 
 fn review_value(data: &DataSnapshot, week_start: NaiveDate, index: usize) -> String {
@@ -885,8 +966,9 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
+    use office_desk_core::domain::types::ProjectStatus;
 
-    use super::cleared_snapshot;
+    use super::{cleared_snapshot, new_project};
 
     #[test]
     fn cleared_snapshot_is_empty_but_keeps_seed_marker() {
@@ -902,5 +984,23 @@ mod tests {
         // 标记保留：下次启动不会再自动灌种子数据
         assert_eq!(data.seeded_at, Some(now));
         assert_eq!(data.last_run_date, Some(today));
+    }
+
+    #[test]
+    fn new_project_starts_empty_and_active() {
+        let now = NaiveDate::from_ymd_opt(2026, 10, 22)
+            .unwrap()
+            .and_hms_opt(9, 0, 0)
+            .unwrap();
+
+        let project = new_project("p1".into(), "测试项目".into(), now);
+
+        assert_eq!(project.name, "测试项目");
+        assert_eq!(project.status, ProjectStatus::Active);
+        assert_eq!(project.updated_at, now);
+        assert!(project.current.is_empty());
+        assert!(project.next.is_empty());
+        assert!(project.blocker.is_empty());
+        assert!(project.blocker_log.is_empty());
     }
 }

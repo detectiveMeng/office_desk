@@ -6,7 +6,7 @@ use gpui_kit::*;
 use office_desk_core::domain::project::{progress, sync_status};
 use office_desk_core::domain::types::{Project, ProjectStatus, TodoStatus};
 
-use super::{bar, card, ghost_button, hint, pill};
+use super::{bar, card, ghost_button, hint, pill, primary_button};
 use crate::state::Workspace;
 use crate::theme::Palette;
 
@@ -30,6 +30,37 @@ impl Workspace {
             .flex()
             .flex_col()
             .gap(px(14.))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w(px(0.))
+                            .px(px(10.))
+                            .py(px(4.))
+                            .rounded(px(8.))
+                            .border_1()
+                            .border_color(rgb(p.line))
+                            .bg(rgb(p.paper))
+                            .child(
+                                Input::new(&self.project_input)
+                                    .appearance(false)
+                                    .text_size(px(13.))
+                                    .w_full(),
+                            ),
+                    )
+                    .child(
+                        primary_button("＋ 加项目", &p)
+                            .id("project-add")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                let input = this.project_input.clone();
+                                this.submit_project(&input, window, cx);
+                            })),
+                    ),
+            )
             .child(
                 div()
                     .text_size(px(12.))
