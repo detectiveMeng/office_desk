@@ -70,9 +70,17 @@ impl Workspace {
                         ))),
                 )
                 .child(
-                    ghost_button("全部顺延到明天", p.red, &p)
-                        .id("postpone-all")
-                        .on_click(cx.listener(|this, _, _, cx| this.postpone_all_overdue(cx))),
+                    ghost_button(
+                        if self.confirm_postpone_all {
+                            format!("确认顺延 {} 件", overdue.len())
+                        } else {
+                            "全部顺延到明天".to_string()
+                        },
+                        p.red,
+                        &p,
+                    )
+                    .id("postpone-all")
+                    .on_click(cx.listener(|this, _, _, cx| this.postpone_all_overdue(cx))),
                 )
                 .into_any_element(),
         );
@@ -371,6 +379,7 @@ impl Workspace {
         let id_postpone = todo.id.clone();
         let id_priority = todo.id.clone();
         let id_delete = todo.id.clone();
+        let confirming_delete = self.confirm_delete.as_deref() == Some(todo.id.as_str());
 
         div()
             .flex()
@@ -469,9 +478,14 @@ impl Workspace {
                     .cursor_pointer()
                     .flex_none()
                     .px(px(6.))
-                    .text_size(px(14.))
-                    .text_color(rgb(p.ink3))
-                    .child("×")
+                    .text_size(if confirming_delete { px(11.) } else { px(14.) })
+                    .text_color(if confirming_delete {
+                        rgb(p.red)
+                    } else {
+                        rgb(p.ink3)
+                    })
+                    .hover(|el| el.text_color(rgb(p.red)))
+                    .child(if confirming_delete { "确认删除" } else { "×" })
                     .id(SharedString::from(format!("del-{id_delete}")))
                     .on_click(cx.listener(move |this, _, _, cx| this.delete_todo(&id_delete, cx))),
             )

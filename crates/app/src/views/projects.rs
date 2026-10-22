@@ -3,20 +3,49 @@
 use gpui_kit::component::input::Input;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use office_desk_core::domain::project::{progress, sync_status};
+use office_desk_core::domain::project::{progress, sort_projects, sync_status};
 use office_desk_core::domain::types::{Project, ProjectStatus, TodoStatus};
 
 use super::{bar, card, ghost_button, hint, pill, primary_button};
-use crate::state::Workspace;
+use crate::state::{Workspace, PROJECT_FILTERS};
 use crate::theme::Palette;
 
 impl Workspace {
     pub(crate) fn render_projects(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palette;
-        let projects = self.data.projects.clone();
+        let mut projects = self.data.projects.clone();
+        sort_projects(&mut projects, &self.data.todos, self.today);
+        projects.retain(|project| self.project_filter.matches(sync_status(project)));
         let mut cards: Vec<AnyElement> = Vec::new();
         for project in &projects {
             cards.push(self.project_card(project, cx).into_any_element());
+        }
+
+        let mut filters: Vec<AnyElement> = Vec::new();
+        for filter in PROJECT_FILTERS {
+            let active = self.project_filter == filter;
+            filters.push(
+                div()
+                    .cursor_pointer()
+                    .px(px(10.))
+                    .py(px(4.))
+                    .rounded(px(999.))
+                    .text_size(px(11.5))
+                    .when(active, |el| {
+                        el.bg(rgb(p.teal_soft))
+                            .text_color(rgb(p.teal))
+                            .font_weight(FontWeight::SEMIBOLD)
+                    })
+                    .when(!active, |el| el.text_color(rgb(p.ink3)))
+                    .child(filter.label())
+                    .id(SharedString::from(format!("pf-{}", filter.label())))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.project_filter = filter;
+                        this.confirm_delete = None;
+                        cx.notify();
+                    }))
+                    .into_any_element(),
+            );
         }
 
         div()
@@ -63,9 +92,16 @@ impl Workspace {
             )
             .child(
                 div()
-                    .text_size(px(12.))
-                    .text_color(rgb(p.ink3))
-                    .child("卡点驱动状态（不手动选「卡住」），进度来自关联待办"),
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .child(
+                        div()
+                            .text_size(px(12.))
+                            .text_color(rgb(p.ink3))
+                            .child("卡点驱动状态（不手动选「卡住」），进度来自关联待办"),
+                    )
+                    .child(div().flex().items_center().gap(px(4.)).children(filters)),
             )
             .child(
                 div()
@@ -73,7 +109,16 @@ impl Workspace {
                     .flex_wrap()
                     .gap(px(14.))
                     .children(cards)
-                    .when(projects.is_empty(), |el| el.child(hint("还没有项目。", &p))),
+                    .when(projects.is_empty(), |el| {
+                        el.child(hint(
+                            if self.data.projects.is_empty() {
+                                "还没有项目。"
+                            } else {
+                                "该筛选下没有项目。"
+                            },
+                            &p,
+                        ))
+                    }),
             )
     }
 
@@ -142,6 +187,8 @@ impl Workspace {
 
         let id_done = project.id.clone();
         let id_pause = project.id.clone();
+        let id_delete = project.id.clone();
+        let confirming_delete = self.confirm_delete.as_deref() == Some(project.id.as_str());
 
         card(&p)
             .w(px(400.))
@@ -149,6 +196,7 @@ impl Workspace {
             .flex()
             .flex_col()
             .gap(px(10.))
+            .when(status == ProjectStatus::Done, |el| el.opacity(0.55))
             .child(
                 div()
                     .flex()
@@ -232,6 +280,24 @@ impl Workspace {
                         .on_click(
                             cx.listener(move |this, _, _, cx| {
                                 this.toggle_project_pause(&id_pause, cx)
+                            }),
+                        ),
+                    )
+                    .child(div().flex_1())
+                    .child(
+                        ghost_button(
+                            if confirming_delete {
+                                "确认删除"
+                            } else {
+                                "删除"
+                            },
+                            p.red,
+                            &p,
+                        )
+                        .id(SharedString::from(format!("pdel-{id_delete}")))
+                        .on_click(
+                            cx.listener(move |this, _, _, cx| {
+                                this.delete_project(&id_delete, cx)
                             }),
                         ),
                     ),

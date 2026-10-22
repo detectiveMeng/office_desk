@@ -1,10 +1,9 @@
 //! 每周复盘：四类图表 + 三段手写总结。
 
-use chrono::Duration;
+use chrono::{Duration, NaiveDate};
 use gpui_kit::component::input::Input;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use office_desk_core::domain::project::progress;
 use office_desk_core::domain::stats;
 
 use super::{
@@ -179,12 +178,48 @@ impl Workspace {
             );
         }
 
-        /* 项目进度 */
-        let mut project_rows: Vec<Div> = Vec::new();
+        /* 卡点汇总：本周所有卡住过的项目，含已解除 */
+        let mut blocker_items: Vec<(String, String, NaiveDate, Option<NaiveDate>)> = Vec::new();
         for project in &self.data.projects {
-            let prog = progress(project, &self.data.todos, self.today);
-            let rate = prog.rate.unwrap_or(0.0);
-            project_rows.push(
+            let mut has_open = false;
+            for event in &project.blocker_log {
+                if event.start_at >= week_start && event.start_at <= week_end {
+                    blocker_items.push((
+                        project.name.clone(),
+                        event.text.clone(),
+                        event.start_at,
+                        event.end_at,
+                    ));
+                    if event.end_at.is_none() {
+                        has_open = true;
+                    }
+                }
+            }
+            // 兼容早期没有卡点流水的数据
+            if !project.blocker.is_empty() && !has_open {
+                blocker_items.push((
+                    project.name.clone(),
+                    project.blocker.clone(),
+                    self.today,
+                    None,
+                ));
+            }
+        }
+        blocker_items.sort_by(|a, b| {
+            a.3.is_some()
+                .cmp(&b.3.is_some())
+                .then_with(|| b.2.cmp(&a.2))
+        });
+
+        let mut blocker_rows: Vec<Div> = Vec::new();
+        for (name, text, start, end) in &blocker_items {
+            let days = end
+                .unwrap_or(self.today)
+                .signed_duration_since(*start)
+                .num_days()
+                .max(0)
+                + 1;
+            blocker_rows.push(
                 div()
                     .flex()
                     .items_center()
@@ -196,25 +231,26 @@ impl Workspace {
                             .text_size(px(11.))
                             .text_color(rgb(p.ink2))
                             .text_ellipsis()
-                            .child(SharedString::from(project.name.clone())),
+                            .child(SharedString::from(name.clone())),
                     )
                     .child(
                         div()
                             .flex_1()
                             .min_w(px(0.))
-                            .child(bar(rate as f32, p.teal, p.line2)),
-                    )
-                    .child(
-                        div()
-                            .flex_none()
-                            .w(px(48.))
                             .text_size(px(11.))
-                            .text_color(rgb(p.ink2))
-                            .child(SharedString::from(format!("{}/{}", prog.done, prog.total))),
+                            .text_color(rgb(p.ink3))
+                            .text_ellipsis()
+                            .child(SharedString::from(text.clone())),
                     )
-                    .when(prog.overdue > 0, |el| {
-                        el.child(pill(format!("逾期 {}", prog.overdue), p.red, p.red_soft))
-                    }),
+                    .child(pill(
+                        if end.is_some() {
+                            format!("已解除 · {days} 天")
+                        } else {
+                            format!("卡住中 · {days} 天")
+                        },
+                        if end.is_some() { p.ink3 } else { p.amber },
+                        if end.is_some() { p.line2 } else { p.amber_soft },
+                    )),
             );
         }
 
@@ -362,8 +398,17 @@ impl Workspace {
                             .flex()
                             .flex_col()
                             .gap(px(10.))
-                            .child(section("项目进度", &p))
-                            .child(div().flex().flex_col().gap(px(8.)).children(project_rows)),
+                            .child(section("卡点汇总", &p))
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(8.))
+                                    .children(blocker_rows)
+                                    .when(blocker_items.is_empty(), |el| {
+                                        el.child(hint("本周没有卡点记录。", &p))
+                                    }),
+                            ),
                     ),
             )
             .child(

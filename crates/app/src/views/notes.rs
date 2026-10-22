@@ -174,6 +174,9 @@ impl Workspace {
         let id_pin = note.id.clone();
         let id_todo = note.id.clone();
         let id_delete = note.id.clone();
+        let id_edit = note.id.clone();
+        let editing = self.editing_note.as_deref() == Some(note.id.as_str());
+        let confirming_delete = self.confirm_delete.as_deref() == Some(note.id.as_str());
 
         let mut tag_pills: Vec<Div> = Vec::new();
         for tag in &note.tags {
@@ -196,12 +199,36 @@ impl Workspace {
                     .items_start()
                     .gap(px(10.))
                     .child(
-                        div()
-                            .flex_1()
-                            .min_w(px(0.))
-                            .text_size(px(13.))
-                            .text_color(rgb(p.ink))
-                            .child(SharedString::from(note.content.clone())),
+                        if editing {
+                            div()
+                                .flex_1()
+                                .min_w(px(0.))
+                                .px(px(8.))
+                                .py(px(4.))
+                                .rounded(px(6.))
+                                .border_1()
+                                .border_color(rgb(p.teal))
+                                .bg(rgb(p.bg))
+                                .id("note-edit")
+                                .child(
+                                    Input::new(&self.note_edit_input)
+                                        .appearance(false)
+                                        .text_size(px(13.))
+                                        .w_full(),
+                                )
+                        } else {
+                            div()
+                                .flex_1()
+                                .min_w(px(0.))
+                                .cursor_pointer()
+                                .text_size(px(13.))
+                                .text_color(rgb(p.ink))
+                                .child(SharedString::from(note.content.clone()))
+                                .id(SharedString::from(format!("ne-{id_edit}")))
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    this.start_edit_note(&id_edit, window, cx)
+                                }))
+                        },
                     )
                     .when(note.pinned, |el| {
                         el.child(pill("置顶", p.teal, p.teal_soft))
@@ -241,13 +268,21 @@ impl Workspace {
                             ),
                     )
                     .child(
-                        ghost_button("删除", p.red, &p)
-                            .id(SharedString::from(format!("nd-{id_delete}")))
-                            .on_click(
-                                cx.listener(move |this, _, _, cx| {
-                                    this.delete_note(&id_delete, cx)
-                                }),
-                            ),
+                        ghost_button(
+                            if confirming_delete {
+                                "确认删除"
+                            } else {
+                                "删除"
+                            },
+                            p.red,
+                            &p,
+                        )
+                        .id(SharedString::from(format!("nd-{id_delete}")))
+                        .on_click(
+                            cx.listener(move |this, _, _, cx| {
+                                this.delete_note(&id_delete, cx)
+                            }),
+                        ),
                     ),
             )
     }

@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration as StdDuration, SystemTime, UNIX_EPOCH};
 
 use chrono::{Duration, Local, NaiveDate, NaiveDateTime};
 use gpui_kit::component::input::{InputEvent, InputState};
@@ -54,6 +54,48 @@ pub(crate) struct ProjectInputs {
     pub(crate) blocker: Entity<InputState>,
 }
 
+/// 项目页状态筛选
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum ProjectFilter {
+    All,
+    Active,
+    Blocked,
+    Done,
+}
+
+impl ProjectFilter {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            ProjectFilter::All => "全部",
+            ProjectFilter::Active => "进行中",
+            ProjectFilter::Blocked => "卡住",
+            ProjectFilter::Done => "已完成",
+        }
+    }
+
+    pub(crate) fn matches(self, status: ProjectStatus) -> bool {
+        match self {
+            ProjectFilter::All => true,
+            ProjectFilter::Active => status == ProjectStatus::Active,
+            ProjectFilter::Blocked => status == ProjectStatus::Blocked,
+            ProjectFilter::Done => status == ProjectStatus::Done,
+        }
+    }
+}
+
+pub(crate) const PROJECT_FILTERS: [ProjectFilter; 4] = [
+    ProjectFilter::All,
+    ProjectFilter::Active,
+    ProjectFilter::Blocked,
+    ProjectFilter::Done,
+];
+
+/// 最近一次可撤销的动作（完成 / 顺延），保留动作前的整库快照。
+struct UndoState {
+    data: DataSnapshot,
+    label: String,
+}
+
 pub struct Workspace {
     pub(crate) storage: Storage,
     pub(crate) data: DataSnapshot,
@@ -64,7 +106,20 @@ pub struct Workspace {
     pub(crate) quick_input: Entity<InputState>,
     pub(crate) quick_priority: u8,
     pub(crate) note_input: Entity<InputState>,
+    /// 灵感行内编辑复用的输入框
+    pub(crate) note_edit_input: Entity<InputState>,
+    /// 当前正在编辑的灵感 id
+    pub(crate) editing_note: Option<String>,
     pub(crate) project_input: Entity<InputState>,
+    /// 项目页状态筛选
+    pub(crate) project_filter: ProjectFilter,
+    /// 删除类操作的二次确认目标（待办 / 项目 / 灵感共用）
+    pub(crate) confirm_delete: Option<String>,
+    /// 「全部顺延到明天」的二次确认
+    pub(crate) confirm_postpone_all: bool,
+    /// 5 秒内可撤销的最近一次完成 / 顺延
+    undo: Option<UndoState>,
+    undo_seq: u64,
     pub(crate) tag_filter: Option<String>,
     pub(crate) show_done: bool,
     pub(crate) week_offset: i32,
@@ -97,6 +152,7 @@ impl Workspace {
         let project_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder("新项目名称，回车添加")
         });
+        let note_edit_input = cx.new(|cx| InputState::new(window, cx));
 
         let review_inputs = [
             cx.new(|cx| {
@@ -141,6 +197,15 @@ impl Workspace {
             |this, input, event: &InputEvent, window, cx| {
                 if matches!(event, InputEvent::PressEnter { .. }) {
                     this.submit_project(input, window, cx);
+                }
+            },
+        ));
+        subscriptions.push(cx.subscribe_in(
+            &note_edit_input,
+            window,
+            |this, _input, event: &InputEvent, _window, cx| {
+                if matches!(event, InputEvent::PressEnter { .. } | InputEvent::Blur) {
+                    this.save_edit_note(cx);
                 }
             },
         ));
@@ -212,7 +277,14 @@ impl Workspace {
             quick_input,
             quick_priority: 1,
             note_input,
+            note_edit_input,
+            editing_note: None,
             project_input,
+            project_filter: ProjectFilter::All,
+            confirm_delete: None,
+            confirm_postpone_all: false,
+            undo: None,
+            undo_seq: 0,
             tag_filter: None,
             show_done: false,
             week_offset: 0,
@@ -234,6 +306,22 @@ impl Workspace {
         start_of_week(self.today) + Duration::days(7 * self.week_offset as i64)
     }
 
+    /// 切到某页时聚焦该页的录入框
+    pub(crate) fn focus_page_input(
+        &mut self,
+        page: Page,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let input = match page {
+            Page::Today => self.quick_input.clone(),
+            Page::Notes => self.note_input.clone(),
+            Page::Projects => self.project_input.clone(),
+            Page::Review => self.review_inputs[0].clone(),
+        };
+        input.update(cx, |state, cx| state.focus(window, cx));
+    }
+
     fn commit(&mut self, cx: &mut Context<Self>) {
         if let Err(err) = self.storage.save(&self.data) {
             self.notice = Some(format!("保存失败：{err}"));
@@ -243,6 +331,40 @@ impl Workspace {
 
     fn flash(&mut self, message: impl Into<String>, cx: &mut Context<Self>) {
         self.notice = Some(message.into());
+        self.commit(cx);
+    }
+
+    /// 记录动作前的快照，并安排 5 秒后自动清除撤销入口
+    fn arm_undo(&mut self, label: impl Into<String>, cx: &mut Context<Self>) {
+        self.undo = Some(UndoState {
+            data: self.data.clone(),
+            label: label.into(),
+        });
+        self.undo_seq += 1;
+        let seq = self.undo_seq;
+        cx.spawn(async move |this, cx| {
+            cx.background_executor()
+                .timer(StdDuration::from_secs(5))
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                if this.undo_seq == seq && this.undo.is_some() {
+                    this.undo = None;
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub(crate) fn undo(&mut self, cx: &mut Context<Self>) {
+        let Some(undo) = self.undo.take() else {
+            return;
+        };
+        self.undo_seq += 1;
+        self.data = undo.data;
+        self.confirm_delete = None;
+        self.confirm_postpone_all = false;
+        self.notice = Some(format!("已撤销{}", undo.label));
         self.commit(cx);
     }
 
@@ -287,6 +409,14 @@ impl Workspace {
 
     pub(crate) fn toggle_todo(&mut self, id: &str, cx: &mut Context<Self>) {
         let now = self.now();
+        let becoming_done = self
+            .data
+            .todos
+            .iter()
+            .find(|t| t.id == id)
+            .map(|t| t.status != TodoStatus::Done)
+            .unwrap_or(false);
+        self.arm_undo(if becoming_done { "完成" } else { "恢复待办" }, cx);
         if let Some(todo) = self.data.todos.iter_mut().find(|t| t.id == id) {
             if todo.status == TodoStatus::Done {
                 todo.status = TodoStatus::Todo;
@@ -296,12 +426,28 @@ impl Workspace {
                 todo.done_at = Some(now);
             }
         }
+        self.notice = Some(if becoming_done {
+            "已完成"
+        } else {
+            "已恢复待办"
+        }
+        .into());
         self.commit(cx);
     }
 
     pub(crate) fn postpone_todo(&mut self, id: &str, cx: &mut Context<Self>) {
         let now = self.now();
         let tomorrow = self.today + Duration::days(1);
+        let postponable = self
+            .data
+            .todos
+            .iter()
+            .any(|t| t.id == id && t.status == TodoStatus::Todo);
+        if !postponable {
+            self.commit(cx);
+            return;
+        }
+        self.arm_undo("顺延", cx);
         let mut message = None;
         if let Some(todo) = self.data.todos.iter_mut().find(|t| t.id == id) {
             if todo.status == TodoStatus::Todo {
@@ -327,6 +473,25 @@ impl Workspace {
         let now = self.now();
         let today = self.today;
         let tomorrow = today + Duration::days(1);
+        let overdue_count = self
+            .data
+            .todos
+            .iter()
+            .filter(|t| t.status == TodoStatus::Todo && bucket(t, today) == Bucket::Overdue)
+            .count();
+        if overdue_count == 0 {
+            return;
+        }
+        if !self.confirm_postpone_all {
+            self.confirm_postpone_all = true;
+            self.notice = Some(format!(
+                "再点一次确认：把 {overdue_count} 件逾期任务顺延到明天"
+            ));
+            cx.notify();
+            return;
+        }
+        self.confirm_postpone_all = false;
+        self.arm_undo(format!("顺延 {overdue_count} 件"), cx);
         let mut count = 0usize;
         for todo in self.data.todos.iter_mut() {
             if todo.status == TodoStatus::Todo && bucket(todo, today) == Bucket::Overdue {
@@ -350,6 +515,13 @@ impl Workspace {
     }
 
     pub(crate) fn delete_todo(&mut self, id: &str, cx: &mut Context<Self>) {
+        if self.confirm_delete.as_deref() != Some(id) {
+            self.confirm_delete = Some(id.to_string());
+            self.notice = Some("再点一次确认删除这条任务".into());
+            cx.notify();
+            return;
+        }
+        self.confirm_delete = None;
         self.data.todos.retain(|t| t.id != id);
         self.flash("已删除任务", cx);
     }
@@ -374,15 +546,7 @@ impl Workspace {
             return;
         }
         let now = self.now();
-        let mut tags: Vec<String> = Vec::new();
-        for word in content.split_whitespace() {
-            if let Some(tag) = word.strip_prefix('#') {
-                let tag = tag.trim_matches(|c: char| c == ',' || c == '，' || c == '。' || c == '#');
-                if !tag.is_empty() && !tags.iter().any(|t| t == tag) {
-                    tags.push(tag.to_string());
-                }
-            }
-        }
+        let tags = parse_tags(&content);
         self.data.notes.push(Note {
             id: next_id("n"),
             content,
@@ -458,8 +622,51 @@ impl Workspace {
     }
 
     pub(crate) fn delete_note(&mut self, id: &str, cx: &mut Context<Self>) {
+        if self.confirm_delete.as_deref() != Some(id) {
+            self.confirm_delete = Some(id.to_string());
+            self.notice = Some("再点一次确认删除这条灵感".into());
+            cx.notify();
+            return;
+        }
+        self.confirm_delete = None;
         self.data.notes.retain(|n| n.id != id);
         self.flash("已删除灵感", cx);
+    }
+
+    /// 点击灵感文字进入行内编辑
+    pub(crate) fn start_edit_note(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(content) = self
+            .data
+            .notes
+            .iter()
+            .find(|n| n.id == id)
+            .map(|n| n.content.clone())
+        else {
+            return;
+        };
+        self.editing_note = Some(id.to_string());
+        self.note_edit_input.update(cx, |state, cx| {
+            state.set_value(content, window, cx);
+            state.focus(window, cx);
+        });
+        cx.notify();
+    }
+
+    /// 保存行内编辑：重新解析标签、刷新更新时间
+    pub(crate) fn save_edit_note(&mut self, cx: &mut Context<Self>) {
+        let Some(id) = self.editing_note.take() else {
+            return;
+        };
+        let content = self.note_edit_input.read(cx).value().trim().to_string();
+        let now = self.now();
+        if let Some(note) = self.data.notes.iter_mut().find(|n| n.id == id) {
+            if note.content != content {
+                note.content = content.clone();
+                note.tags = parse_tags(&content);
+                note.updated_at = now;
+            }
+        }
+        self.commit(cx);
     }
 
     pub(crate) fn note_to_todo(&mut self, id: &str, cx: &mut Context<Self>) {
@@ -541,6 +748,27 @@ impl Workspace {
             };
             project.updated_at = now;
         }
+        self.commit(cx);
+    }
+
+    /// 删除项目：第一次点击进入确认态，再点一次删除并解除关联待办。
+    pub(crate) fn delete_project(&mut self, id: &str, cx: &mut Context<Self>) {
+        if self.confirm_delete.as_deref() != Some(id) {
+            self.confirm_delete = Some(id.to_string());
+            self.notice = Some("再点一次确认删除项目，关联待办会解除关联".into());
+            cx.notify();
+            return;
+        }
+
+        self.confirm_delete = None;
+        self.data.projects.retain(|p| p.id != id);
+        for todo in &mut self.data.todos {
+            if todo.project_id.as_deref() == Some(id) {
+                todo.project_id = None;
+            }
+        }
+        self.project_inputs.remove(id);
+        self.notice = Some("已删除项目，关联待办已解除关联".into());
         self.commit(cx);
     }
 
@@ -634,6 +862,10 @@ impl Workspace {
         self.clear_confirm = false;
         self.data = cleared_snapshot(self.today, self.now());
         self.project_inputs.clear();
+        self.project_filter = ProjectFilter::All;
+        self.confirm_delete = None;
+        self.confirm_postpone_all = false;
+        self.editing_note = None;
         self.tag_filter = None;
         self.show_done = false;
         self.week_offset = 0;
@@ -651,6 +883,20 @@ fn cleared_snapshot(today: NaiveDate, now: NaiveDateTime) -> DataSnapshot {
     data.seeded_at = Some(now);
     data.last_run_date = Some(today);
     data
+}
+
+/// 从 `#tag` 形式的文本里解析标签（去重、去掉尾部标点）。
+fn parse_tags(content: &str) -> Vec<String> {
+    let mut tags: Vec<String> = Vec::new();
+    for word in content.split_whitespace() {
+        if let Some(tag) = word.strip_prefix('#') {
+            let tag = tag.trim_matches(|c: char| c == ',' || c == '，' || c == '。' || c == '#');
+            if !tag.is_empty() && !tags.iter().any(|t| t == tag) {
+                tags.push(tag.to_string());
+            }
+        }
+    }
+    tags
 }
 
 /// 新项目的初始形态：三个字段为空、进行中、没有卡点流水。
@@ -704,6 +950,7 @@ impl Render for Workspace {
             Page::Review => self.render_review(cx).into_any_element(),
         };
         let notice = self.notice.clone();
+        let undo_available = self.undo.is_some();
 
         div()
             .flex()
@@ -741,7 +988,26 @@ impl Render for Workspace {
                                         .bg(rgb(palette.teal_ink))
                                         .text_color(rgb(palette.paper))
                                         .text_size(px(12.))
-                                        .child(SharedString::from(text)),
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .items_center()
+                                                .gap(px(10.))
+                                                .child(SharedString::from(text))
+                                                .when(undo_available, |el| {
+                                                    el.child(
+                                                        div()
+                                                            .cursor_pointer()
+                                                            .font_weight(FontWeight::SEMIBOLD)
+                                                            .underline()
+                                                            .child("撤销")
+                                                            .id("undo-toast")
+                                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                                this.undo(cx)
+                                                            })),
+                                                    )
+                                                }),
+                                        ),
                                 )
                             }),
                     ),
@@ -895,10 +1161,14 @@ impl Workspace {
                     .when(!active, |el| el.text_color(rgb(palette.ink2)))
                     .child(page.title())
                     .id(SharedString::from(format!("nav-{}", page.title())))
-                    .on_click(cx.listener(move |this, _, _, cx| {
+                    .on_click(cx.listener(move |this, _, window, cx| {
                         this.page = page;
                         this.notice = None;
                         this.clear_confirm = false;
+                        this.confirm_delete = None;
+                        this.confirm_postpone_all = false;
+                        this.editing_note = None;
+                        this.focus_page_input(page, window, cx);
                         cx.notify();
                     }))
                     .into_any_element(),

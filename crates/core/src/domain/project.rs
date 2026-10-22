@@ -59,6 +59,21 @@ pub fn sync_status(p: &Project) -> ProjectStatus {
     }
 }
 
+/// 项目列表排序：卡住 → 有逾期 → 其余；同组内按最近更新，已完成永远排最后。
+pub fn sort_projects(projects: &mut [Project], todos: &[Todo], today: NaiveDate) {
+    projects.sort_by(|a, b| {
+        let rank = |p: &Project| match sync_status(p) {
+            ProjectStatus::Done => 3,
+            ProjectStatus::Blocked => 0,
+            _ if progress(p, todos, today).overdue > 0 => 1,
+            _ => 2,
+        };
+        rank(a)
+            .cmp(&rank(b))
+            .then_with(|| b.updated_at.cmp(&a.updated_at))
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,6 +148,30 @@ mod tests {
         let prog = progress(&p, &[], day(2026, 10, 20));
         assert_eq!(prog.total, 0);
         assert_eq!(prog.rate, None);
+    }
+
+    #[test]
+    fn sort_orders_blocked_overdue_then_others_done_last() {
+        let today = day(2026, 10, 20);
+        let yesterday = day(2026, 10, 19);
+        let mut projects = vec![
+            proj("done", "", ProjectStatus::Done),
+            proj("normal", "", ProjectStatus::Active),
+            proj("blocked", "等确认", ProjectStatus::Active),
+            proj("overdue", "", ProjectStatus::Active),
+        ];
+        let todos = vec![mk(
+            "t",
+            Some("overdue"),
+            TodoStatus::Todo,
+            Some(today),
+            Some(yesterday),
+        )];
+
+        sort_projects(&mut projects, &todos, today);
+
+        let ids: Vec<&str> = projects.iter().map(|p| p.id.as_str()).collect();
+        assert_eq!(ids, vec!["blocked", "overdue", "normal", "done"]);
     }
 
     #[test]
