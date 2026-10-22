@@ -107,9 +107,67 @@ impl Storage {
         backup::backup_to(&self.conn, target)
     }
 
+    /// 备份目录：数据目录下的 `backups`（内存库返回 None）。
+    pub fn backup_dir(&self) -> Option<PathBuf> {
+        self.path
+            .as_ref()
+            .and_then(|path| path.parent().map(|dir| dir.join("backups")))
+    }
+
+    /// 立即备份一份，`stamp` 形如 `20261022-153000`；只保留最近 30 份。
+    pub fn backup_now(&self, stamp: &str) -> Result<PathBuf> {
+        let dir = self
+            .backup_dir()
+            .context("当前存储没有磁盘路径，无法备份")?;
+        std::fs::create_dir_all(&dir)
+            .with_context(|| format!("创建备份目录失败: {}", dir.display()))?;
+        let target = dir.join(format!("office_desk-{stamp}.db"));
+        self.backup_to(&target)?;
+        prune_backups(&dir, 30)?;
+        Ok(target)
+    }
+
+    /// 每天首次启动自动备份一次；当天已有备份则跳过。
+    pub fn auto_backup_daily(&self, day: &str) -> Result<Option<PathBuf>> {
+        let some_dir = match self.backup_dir() {
+            Some(dir) => dir,
+            None => return Ok(None),
+        };
+        if some_dir.join(format!("office_desk-{day}.db")).is_file() {
+            return Ok(None);
+        }
+        Ok(Some(self.backup_now(day)?))
+    }
+
     pub fn path(&self) -> Option<&Path> {
         self.path.as_deref()
     }
+}
+
+/// 只保留最近 `keep` 份 `office_desk-*.db` 备份（文件名时间戳可字典序排序）。
+fn prune_backups(dir: &Path, keep: usize) -> Result<()> {
+    let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
+        .with_context(|| format!("读取备份目录失败: {}", dir.display()))?
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| {
+            path.extension().and_then(|ext| ext.to_str()) == Some("db")
+                && path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|name| name.starts_with("office_desk-"))
+                    .unwrap_or(false)
+        })
+        .collect();
+    files.sort();
+    while files.len() > keep {
+        if let Some(oldest) = files.first().cloned() {
+            let _ = std::fs::remove_file(oldest);
+            files.remove(0);
+        } else {
+            break;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -248,6 +306,44 @@ mod tests {
             dir.join("data")
         );
 
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    fn temp_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "office_desk_{tag}_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn backup_keeps_latest_thirty() {
+        let dir = temp_dir("backup");
+        let st = Storage::open(dir.join("office_desk.db")).unwrap();
+        for index in 0..33 {
+            st.backup_now(&format!("20260101-{index:06}")).unwrap();
+        }
+        let backups = std::fs::read_dir(dir.join("backups")).unwrap().count();
+        assert_eq!(backups, 30);
+        assert!(!dir.join("backups").join("office_desk-20260101-000000.db").exists());
+        assert!(dir.join("backups").join("office_desk-20260101-000032.db").exists());
+        drop(st);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn daily_backup_runs_once_per_day() {
+        let dir = temp_dir("daily");
+        let st = Storage::open(dir.join("office_desk.db")).unwrap();
+        assert!(st.auto_backup_daily("20261022").unwrap().is_some());
+        assert!(st.auto_backup_daily("20261022").unwrap().is_none());
+        drop(st);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

@@ -4,7 +4,7 @@
 use chrono::{NaiveDate, NaiveDateTime};
 
 /// 任务状态：待办 / 已完成
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum TodoStatus {
     Todo,
     Done,
@@ -12,7 +12,7 @@ pub enum TodoStatus {
 
 /// 项目状态：进行中 / 卡住了 / 已完成 / 暂停。
 /// 「卡住了」由卡点字段自动驱动，不手动选择。
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ProjectStatus {
     Active,
     Blocked,
@@ -21,7 +21,7 @@ pub enum ProjectStatus {
 }
 
 /// 顺延流水：每次顺延追加一条 {from, to, at, auto}
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PostponeEvent {
     pub from: Option<NaiveDate>,
     pub to: NaiveDate,
@@ -30,7 +30,7 @@ pub struct PostponeEvent {
 }
 
 /// 卡点流水：用于周复盘「卡点汇总」
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BlockerEvent {
     pub text: String,
     pub start_at: NaiveDate,
@@ -38,7 +38,7 @@ pub struct BlockerEvent {
 }
 
 /// 任务
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Todo {
     pub id: String,
     pub title: String,
@@ -59,7 +59,7 @@ pub struct Todo {
 }
 
 /// 项目
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Project {
     pub id: String,
     pub name: String,
@@ -72,7 +72,7 @@ pub struct Project {
 }
 
 /// 灵感
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Note {
     pub id: String,
     pub content: String,
@@ -83,7 +83,7 @@ pub struct Note {
 }
 
 /// 周复盘记录（仅手写总结部分落库，图表数据实时派生）
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct WeeklyReview {
     pub week_start: NaiveDate,
     pub good: String,
@@ -93,7 +93,7 @@ pub struct WeeklyReview {
 }
 
 /// 内存镜像：四类实体 + 元数据
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DataSnapshot {
     pub todos: Vec<Todo>,
     pub projects: Vec<Project>,

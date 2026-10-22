@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration as StdDuration, SystemTime, UNIX_EPOCH};
 
 use chrono::{Duration, Local, NaiveDate, NaiveDateTime};
-use gpui_kit::component::input::{InputEvent, InputState};
+use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::{Icon, Sizable as _};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -90,6 +90,43 @@ pub(crate) const PROJECT_FILTERS: [ProjectFilter; 4] = [
     ProjectFilter::Done,
 ];
 
+/// 已完成区的时间筛选
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum DoneRange {
+    Today,
+    Week,
+    Earlier,
+}
+
+impl DoneRange {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            DoneRange::Today => "今天",
+            DoneRange::Week => "7 天内",
+            DoneRange::Earlier => "更早",
+        }
+    }
+
+    /// 完成日期是否落在该区间内（未来时间不算）
+    pub(crate) fn matches(self, done_at: Option<NaiveDateTime>, today: NaiveDate) -> bool {
+        let Some(at) = done_at else {
+            return false;
+        };
+        let day = at.date();
+        if day > today {
+            return false;
+        }
+        match self {
+            DoneRange::Today => day == today,
+            DoneRange::Week => day > today - Duration::days(7),
+            DoneRange::Earlier => day <= today - Duration::days(7),
+        }
+    }
+}
+
+pub(crate) const DONE_RANGES: [DoneRange; 3] =
+    [DoneRange::Today, DoneRange::Week, DoneRange::Earlier];
+
 /// 最近一次可撤销的动作（完成 / 顺延），保留动作前的整库快照。
 struct UndoState {
     data: DataSnapshot,
@@ -117,14 +154,24 @@ pub struct Workspace {
     pub(crate) confirm_delete: Option<String>,
     /// 「全部顺延到明天」的二次确认
     pub(crate) confirm_postpone_all: bool,
+    /// 「导入数据」的覆盖确认
+    pub(crate) import_confirm: bool,
+    /// 置顶区是否展开全部（默认只显示前 3 条）
+    pub(crate) pinned_expanded: bool,
+    /// 今日页只看某个项目的待办（从置顶区「看待办」进入）
+    pub(crate) project_focus: Option<String>,
+    /// 已完成区的时间筛选
+    pub(crate) done_range: DoneRange,
     /// 5 秒内可撤销的最近一次完成 / 顺延
     undo: Option<UndoState>,
     undo_seq: u64,
     pub(crate) tag_filter: Option<String>,
     pub(crate) show_done: bool,
     pub(crate) week_offset: i32,
-    /// 「清理测试数据」是否处于待确认状态（点一次进入确认，再点一次执行）
+    /// 「清理测试数据」是否处于待确认状态（输入「清空」后才可执行）
     pub(crate) clear_confirm: bool,
+    /// 清空确认输入框
+    pub(crate) clear_input: Entity<InputState>,
     pub(crate) review_inputs: [Entity<InputState>; 3],
     pub(crate) project_inputs: HashMap<String, ProjectInputs>,
     pub(crate) notice: Option<String>,
@@ -153,6 +200,9 @@ impl Workspace {
             InputState::new(window, cx).placeholder("新项目名称，回车添加")
         });
         let note_edit_input = cx.new(|cx| InputState::new(window, cx));
+        let clear_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder("输入「清空」确认")
+        });
 
         let review_inputs = [
             cx.new(|cx| {
@@ -209,6 +259,16 @@ impl Workspace {
                 }
             },
         ));
+        // 清空输入框内容变化时重绘，让确认按钮的可用态即时更新
+        subscriptions.push(cx.subscribe_in(
+            &clear_input,
+            window,
+            |_this, _input, event: &InputEvent, _window, cx| {
+                if matches!(event, InputEvent::Change) {
+                    cx.notify();
+                }
+            },
+        ));
         for (index, input) in review_inputs.iter().enumerate() {
             subscriptions.push(cx.subscribe_in(
                 input,
@@ -221,51 +281,8 @@ impl Workspace {
             ));
         }
 
-        let mut project_inputs: HashMap<String, ProjectInputs> = HashMap::new();
-        for project in &data.projects {
-            let current = cx.new(|cx| {
-                InputState::new(window, cx)
-                    .placeholder("当前在推进什么")
-                    .default_value(project.current.clone())
-            });
-            let next = cx.new(|cx| {
-                InputState::new(window, cx)
-                    .placeholder("下一步是什么")
-                    .default_value(project.next.clone())
-            });
-            let blocker = cx.new(|cx| {
-                InputState::new(window, cx)
-                    .placeholder("卡在哪里（留空 = 进行中）")
-                    .default_value(project.blocker.clone())
-            });
-
-            let pid = project.id.clone();
-            for (field, entity) in [
-                (Field::Current, &current),
-                (Field::Next, &next),
-                (Field::Blocker, &blocker),
-            ] {
-                let pid = pid.clone();
-                subscriptions.push(cx.subscribe_in(
-                    entity,
-                    window,
-                    move |this, _input, event: &InputEvent, _window, cx| {
-                        if matches!(event, InputEvent::PressEnter { .. } | InputEvent::Blur) {
-                            this.save_project_field(&pid, field, cx);
-                        }
-                    },
-                ));
-            }
-
-            project_inputs.insert(
-                project.id.clone(),
-                ProjectInputs {
-                    current,
-                    next,
-                    blocker,
-                },
-            );
-        }
+        let (project_inputs, project_subs) = spawn_project_inputs(window, cx, &data.projects);
+        subscriptions.extend(project_subs);
 
         Self {
             storage,
@@ -283,12 +300,17 @@ impl Workspace {
             project_filter: ProjectFilter::All,
             confirm_delete: None,
             confirm_postpone_all: false,
+            import_confirm: false,
+            pinned_expanded: false,
+            project_focus: None,
+            done_range: DoneRange::Week,
             undo: None,
             undo_seq: 0,
             tag_filter: None,
             show_done: false,
             week_offset: 0,
             clear_confirm: false,
+            clear_input,
             review_inputs,
             project_inputs,
             notice: None,
@@ -374,6 +396,38 @@ impl Workspace {
             .iter()
             .find(|p| p.id == id)
             .map(|p| p.name.as_str())
+    }
+
+    /// 展开 / 收起置顶区超出前 3 条的条目
+    pub(crate) fn toggle_pinned(&mut self, cx: &mut Context<Self>) {
+        self.pinned_expanded = !self.pinned_expanded;
+        cx.notify();
+    }
+
+    /// 置顶区「看待办」：回到今日页并只看该项目关联的待办
+    pub(crate) fn view_project_todos(&mut self, id: &str, cx: &mut Context<Self>) {
+        self.page = Page::Today;
+        self.project_focus = Some(id.to_string());
+        self.notice = None;
+        cx.notify();
+    }
+
+    /// 置顶区「去处理」：跳到项目卡并聚焦卡点输入框
+    pub(crate) fn open_project_blocker(
+        &mut self,
+        id: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.page = Page::Projects;
+        self.project_filter = ProjectFilter::All;
+        self.confirm_delete = None;
+        if let Some(inputs) = self.project_inputs.get(id) {
+            inputs
+                .blocker
+                .update(cx, |state, cx| state.focus(window, cx));
+        }
+        cx.notify();
     }
 
     /* ---------------- 待办动作 ---------------- */
@@ -851,17 +905,135 @@ impl Workspace {
     /* ---------------- 清理测试数据 ---------------- */
 
     pub(crate) fn clear_test_data(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // 破坏性操作：第一次点击只进入确认态，再点一次才真正清空
+        // 破坏性操作：先进入确认态，输入「清空」后才允许执行
         if !self.clear_confirm {
             self.clear_confirm = true;
-            self.notice = Some("再点一次确认清理，清空后不可恢复".into());
+            self.clear_input
+                .update(cx, |state, cx| state.set_value("", window, cx));
+            self.notice = Some("输入「清空」两个字后点击确认".into());
+            cx.notify();
+            return;
+        }
+
+        let typed = self.clear_input.read(cx).value().trim().to_string();
+        if typed != "清空" {
+            self.notice = Some("请先输入「清空」再确认".into());
             cx.notify();
             return;
         }
 
         self.clear_confirm = false;
+        self.clear_input
+            .update(cx, |state, cx| state.set_value("", window, cx));
         self.data = cleared_snapshot(self.today, self.now());
         self.project_inputs.clear();
+        self.project_filter = ProjectFilter::All;
+        self.confirm_delete = None;
+        self.confirm_postpone_all = false;
+        self.import_confirm = false;
+        self.editing_note = None;
+        self.tag_filter = None;
+        self.show_done = false;
+        self.week_offset = 0;
+        self.project_focus = None;
+        self.pinned_expanded = false;
+        self.done_range = DoneRange::Week;
+        for input in &self.review_inputs {
+            input.update(cx, |state, cx| state.set_value("", window, cx));
+        }
+        self.notice = Some("已清空全部待办、项目、灵感与复盘".into());
+        self.commit(cx);
+    }
+
+    /* ---------------- 数据备份 / 导出 / 导入 ---------------- */
+
+    /// 立即备份一份数据库，保留最近 30 份。
+    pub(crate) fn backup_now(&mut self, cx: &mut Context<Self>) {
+        let stamp = self.now().format("%Y%m%d-%H%M%S").to_string();
+        match self.storage.backup_now(&stamp) {
+            Ok(path) => {
+                let name = path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                self.notice = Some(format!("已备份：backups/{name}"));
+            }
+            Err(err) => self.notice = Some(format!("备份失败：{err}")),
+        }
+        cx.notify();
+    }
+
+    /// 导出全部数据为 JSON（自选保存位置）。
+    pub(crate) fn export_data(&mut self, cx: &mut Context<Self>) {
+        let stamp = self.now().format("%Y%m%d-%H%M%S").to_string();
+        let Some(path) = rfd::FileDialog::new()
+            .set_file_name(format!("office_desk-{stamp}.json"))
+            .add_filter("JSON", &["json"])
+            .save_file()
+        else {
+            return;
+        };
+        let file = match std::fs::File::create(&path) {
+            Ok(file) => file,
+            Err(err) => {
+                self.notice = Some(format!("导出失败：{err}"));
+                cx.notify();
+                return;
+            }
+        };
+        match serde_json::to_writer_pretty(file, &self.data) {
+            Ok(()) => self.notice = Some("已导出 JSON 备份".into()),
+            Err(err) => self.notice = Some(format!("导出失败：{err}")),
+        }
+        cx.notify();
+    }
+
+    /// 导入 JSON：第一次点击进入确认态，再点一次选择文件并覆盖当前数据。
+    pub(crate) fn import_data(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.import_confirm {
+            self.import_confirm = true;
+            self.notice = Some("再点一次「确认导入」，导入会覆盖当前全部数据".into());
+            cx.notify();
+            return;
+        }
+        self.import_confirm = false;
+
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("JSON", &["json"])
+            .pick_file()
+        else {
+            cx.notify();
+            return;
+        };
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(err) => {
+                self.notice = Some(format!("读取失败：{err}"));
+                cx.notify();
+                return;
+            }
+        };
+        let imported: DataSnapshot = match serde_json::from_str(&text) {
+            Ok(data) => data,
+            Err(err) => {
+                self.notice = Some(format!("文件格式不正确：{err}"));
+                cx.notify();
+                return;
+            }
+        };
+
+        let counts = format!(
+            "{} 条待办 · {} 个项目 · {} 条灵感",
+            imported.todos.len(),
+            imported.projects.len(),
+            imported.notes.len()
+        );
+        self.data = imported;
+
+        let (inputs, subscriptions) = spawn_project_inputs(window, cx, &self.data.projects);
+        self.project_inputs = inputs;
+        self._subscriptions.extend(subscriptions);
+
         self.project_filter = ProjectFilter::All;
         self.confirm_delete = None;
         self.confirm_postpone_all = false;
@@ -869,12 +1041,74 @@ impl Workspace {
         self.tag_filter = None;
         self.show_done = false;
         self.week_offset = 0;
-        for input in &self.review_inputs {
-            input.update(cx, |state, cx| state.set_value("", window, cx));
+        self.project_focus = None;
+        self.pinned_expanded = false;
+        self.done_range = DoneRange::Week;
+        self.clear_confirm = false;
+        let week_start = start_of_week(self.today);
+        for (index, input) in self.review_inputs.iter().enumerate() {
+            let value = review_value(&self.data, week_start, index);
+            input.update(cx, |state, cx| state.set_value(&value, window, cx));
         }
-        self.notice = Some("已清空全部待办、项目、灵感与复盘".into());
+
+        self.notice = Some(format!("已导入 {counts}"));
         self.commit(cx);
     }
+}
+
+/// 为每个项目创建三个行内输入框，并订阅回车 / 失焦保存。
+fn spawn_project_inputs(
+    window: &mut Window,
+    cx: &mut Context<Workspace>,
+    projects: &[Project],
+) -> (HashMap<String, ProjectInputs>, Vec<Subscription>) {
+    let mut map: HashMap<String, ProjectInputs> = HashMap::new();
+    let mut subscriptions: Vec<Subscription> = Vec::new();
+    for project in projects {
+        let current = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("当前在推进什么")
+                .default_value(project.current.clone())
+        });
+        let next = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("下一步是什么")
+                .default_value(project.next.clone())
+        });
+        let blocker = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("卡在哪里（留空 = 进行中）")
+                .default_value(project.blocker.clone())
+        });
+
+        let pid = project.id.clone();
+        for (field, entity) in [
+            (Field::Current, &current),
+            (Field::Next, &next),
+            (Field::Blocker, &blocker),
+        ] {
+            let pid = pid.clone();
+            subscriptions.push(cx.subscribe_in(
+                entity,
+                window,
+                move |this, _input, event: &InputEvent, _window, cx| {
+                    if matches!(event, InputEvent::PressEnter { .. } | InputEvent::Blur) {
+                        this.save_project_field(&pid, field, cx);
+                    }
+                },
+            ));
+        }
+
+        map.insert(
+            project.id.clone(),
+            ProjectInputs {
+                current,
+                next,
+                blocker,
+            },
+        );
+    }
+    (map, subscriptions)
 }
 
 /// 清空后的快照：列表全空，但保留种子/顺延标记，避免重启后又灌回测试数据。
@@ -1167,7 +1401,11 @@ impl Workspace {
                         this.clear_confirm = false;
                         this.confirm_delete = None;
                         this.confirm_postpone_all = false;
+                        this.import_confirm = false;
                         this.editing_note = None;
+                        this.project_focus = None;
+                        this.clear_input
+                            .update(cx, |state, cx| state.set_value("", window, cx));
                         this.focus_page_input(page, window, cx);
                         cx.notify();
                     }))
@@ -1191,27 +1429,156 @@ impl Workspace {
             .child(div().flex_1())
             .child(
                 div()
-                    .cursor_pointer()
+                    .flex()
+                    .items_center()
+                    .gap(px(5.))
                     .px(px(12.))
-                    .py(px(6.))
-                    .rounded(px(8.))
+                    .py(px(2.))
                     .text_size(px(11.))
+                    .text_color(rgb(palette.ink3))
+                    .child(
+                        div()
+                            .cursor_pointer()
+                            .hover(|el| el.text_color(rgb(palette.teal)))
+                            .child("备份")
+                            .id("backup-now")
+                            .on_click(cx.listener(|this, _, _, cx| this.backup_now(cx))),
+                    )
+                    .child("·")
+                    .child(
+                        div()
+                            .cursor_pointer()
+                            .hover(|el| el.text_color(rgb(palette.teal)))
+                            .child("导出")
+                            .id("export-data")
+                            .on_click(cx.listener(|this, _, _, cx| this.export_data(cx))),
+                    )
+                    .child("·")
+                    .child(
+                        div()
+                            .cursor_pointer()
+                            .when(self.import_confirm, |el| {
+                                el.text_color(rgb(palette.red))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                            })
+                            .hover(|el| el.text_color(rgb(palette.teal)))
+                            .child(if self.import_confirm {
+                                "确认导入"
+                            } else {
+                                "导入"
+                            })
+                            .id("import-data")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.import_data(window, cx)
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(6.))
+                    .when(!self.clear_confirm, |el| {
+                        el.child(
+                            div()
+                                .cursor_pointer()
+                                .px(px(12.))
+                                .py(px(6.))
+                                .rounded(px(8.))
+                                .text_size(px(11.))
+                                .text_color(rgb(palette.ink3))
+                                .hover(|el| {
+                                    el.bg(rgb(palette.red_soft))
+                                        .text_color(rgb(palette.red))
+                                })
+                                .child("清理测试数据")
+                                .id("clear-data")
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.clear_test_data(window, cx)
+                                })),
+                        )
+                    })
                     .when(self.clear_confirm, |el| {
-                        el.bg(rgb(palette.red_soft))
-                            .text_color(rgb(palette.red))
-                    })
-                    .when(!self.clear_confirm, |el| el.text_color(rgb(palette.ink3)))
-                    .hover(|el| {
-                        el.bg(rgb(palette.red_soft))
-                            .text_color(rgb(palette.red))
-                    })
-                    .child(if self.clear_confirm {
-                        "再次点击确认清理"
-                    } else {
-                        "清理测试数据"
-                    })
-                    .id("clear-data")
-                    .on_click(cx.listener(|this, _, window, cx| this.clear_test_data(window, cx))),
+                        let ready = self.clear_input.read(cx).value().trim() == "清空";
+                        el.child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap(px(6.))
+                                .p(px(8.))
+                                .rounded(px(8.))
+                                .bg(rgb(palette.red_soft))
+                                .child(
+                                    div()
+                                        .text_size(px(10.5))
+                                        .text_color(rgb(palette.red))
+                                        .child("输入「清空」后确认，不可恢复"),
+                                )
+                                .child(
+                                    div()
+                                        .px(px(8.))
+                                        .py(px(3.))
+                                        .rounded(px(6.))
+                                        .border_1()
+                                        .border_color(rgb(palette.line))
+                                        .bg(rgb(palette.paper))
+                                        .child(
+                                            Input::new(&self.clear_input)
+                                                .appearance(false)
+                                                .text_size(px(11.))
+                                                .w_full(),
+                                        ),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap(px(6.))
+                                        .child(
+                                            div()
+                                                .cursor_pointer()
+                                                .flex_1()
+                                                .py(px(3.))
+                                                .rounded(px(6.))
+                                                .text_size(px(11.))
+                                                .text_center()
+                                                .bg(rgb(if ready {
+                                                    palette.red
+                                                } else {
+                                                    palette.line2
+                                                }))
+                                                .text_color(rgb(if ready {
+                                                    palette.paper
+                                                } else {
+                                                    palette.ink3
+                                                }))
+                                                .child("确认清空")
+                                                .id("clear-confirm")
+                                                .on_click(cx.listener(|this, _, window, cx| {
+                                                    this.clear_test_data(window, cx)
+                                                })),
+                                        )
+                                        .child(
+                                            div()
+                                                .cursor_pointer()
+                                                .px(px(8.))
+                                                .py(px(3.))
+                                                .rounded(px(6.))
+                                                .text_size(px(11.))
+                                                .text_color(rgb(palette.ink3))
+                                                .child("取消")
+                                                .id("clear-cancel")
+                                                .on_click(cx.listener(|this, _, window, cx| {
+                                                    this.clear_confirm = false;
+                                                    this.clear_input.update(cx, |state, cx| {
+                                                        state.set_value("", window, cx)
+                                                    });
+                                                    cx.notify();
+                                                })),
+                                        ),
+                                ),
+                        )
+                    }),
             )
             .child(
                 div()
@@ -1236,9 +1603,9 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
-    use office_desk_core::domain::types::ProjectStatus;
+    use office_desk_core::domain::types::{DataSnapshot, ProjectStatus};
 
-    use super::{cleared_snapshot, new_project};
+    use super::{cleared_snapshot, new_project, DoneRange};
 
     #[test]
     fn cleared_snapshot_is_empty_but_keeps_seed_marker() {
@@ -1272,5 +1639,40 @@ mod tests {
         assert!(project.next.is_empty());
         assert!(project.blocker.is_empty());
         assert!(project.blocker_log.is_empty());
+    }
+
+    #[test]
+    fn done_range_filters_by_completed_date() {
+        let today = NaiveDate::from_ymd_opt(2026, 10, 22).unwrap();
+        let at = |day: i64| Some((today - chrono::Duration::days(day)).and_hms_opt(9, 0, 0).unwrap());
+
+        assert!(DoneRange::Today.matches(at(0), today));
+        assert!(!DoneRange::Today.matches(at(1), today));
+
+        assert!(DoneRange::Week.matches(at(0), today));
+        assert!(DoneRange::Week.matches(at(6), today));
+        assert!(!DoneRange::Week.matches(at(7), today));
+
+        assert!(DoneRange::Earlier.matches(at(7), today));
+        assert!(DoneRange::Earlier.matches(at(30), today));
+        assert!(!DoneRange::Earlier.matches(at(6), today));
+
+        // 无完成时间 / 未来日期都不属于任何区间
+        assert!(!DoneRange::Week.matches(None, today));
+        assert!(!DoneRange::Week.matches(
+            Some((today + chrono::Duration::days(1)).and_hms_opt(9, 0, 0).unwrap()),
+            today
+        ));
+    }
+
+    #[test]
+    fn snapshot_survives_json_roundtrip() {
+        let today = NaiveDate::from_ymd_opt(2026, 10, 22).unwrap();
+        let data = cleared_snapshot(today, today.and_hms_opt(9, 0, 0).unwrap());
+
+        let json = serde_json::to_string_pretty(&data).unwrap();
+        let back: DataSnapshot = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(back, data);
     }
 }

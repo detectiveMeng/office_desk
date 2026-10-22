@@ -8,7 +8,7 @@ use office_desk_core::domain::todo::{bucket, group_future, overdue_days, sort_fo
 use office_desk_core::domain::types::{Project, Todo, TodoStatus};
 
 use super::{card, ghost_button, hint, pill, primary_button, priority_pill, weekday_cn};
-use crate::state::Workspace;
+use crate::state::{DoneRange, Workspace, DONE_RANGES};
 use crate::theme::Palette;
 
 impl Workspace {
@@ -16,7 +16,16 @@ impl Workspace {
         let p = self.palette;
         let today = self.today;
 
+        let focus_name = self
+            .project_focus
+            .as_deref()
+            .and_then(|id| self.project_name(id))
+            .map(str::to_string);
+
         let mut all = self.data.todos.clone();
+        if let Some(focus) = self.project_focus.as_deref() {
+            all.retain(|todo| todo.project_id.as_deref() == Some(focus));
+        }
         sort_for_today(&mut all, today);
 
         let overdue: Vec<Todo> = all
@@ -85,10 +94,50 @@ impl Workspace {
                 .into_any_element(),
         );
 
-        /* 置顶区：今天要处理的 */
+        /* 只看某个项目（从置顶区「看待办」进入） */
+        if let Some(name) = focus_name.clone() {
+            children.push(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .px(px(10.))
+                    .py(px(5.))
+                    .rounded(px(8.))
+                    .bg(rgb(p.teal_soft))
+                    .child(
+                        div()
+                            .text_size(px(11.5))
+                            .text_color(rgb(p.teal))
+                            .child(SharedString::from(format!("只看：{name}"))),
+                    )
+                    .child(
+                        div()
+                            .cursor_pointer()
+                            .text_size(px(11.))
+                            .text_color(rgb(p.ink3))
+                            .underline()
+                            .child("显示全部")
+                            .id("clear-project-focus")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.project_focus = None;
+                                cx.notify();
+                            })),
+                    )
+                    .into_any_element(),
+            );
+        }
+        /* 置顶区：今天要处理的（默认只显示前 3 条，可展开） */
         if !overdue.is_empty() || !blocked.is_empty() {
+            let limit = if self.pinned_expanded {
+                usize::MAX
+            } else {
+                3
+            };
             let mut rows: Vec<Div> = Vec::new();
-            for todo in &overdue {
+            let mut shown = 0usize;
+            for todo in overdue.iter().take(limit) {
+                shown += 1;
                 rows.push(
                     div()
                         .flex()
@@ -125,7 +174,9 @@ impl Workspace {
                         }),
                 );
             }
-            for project in &blocked {
+            for project in blocked.iter().take(limit.saturating_sub(shown)) {
+                let id_view = project.id.clone();
+                let id_block = project.id.clone();
                 rows.push(
                     div()
                         .flex()
@@ -151,8 +202,41 @@ impl Workspace {
                                 .text_color(rgb(p.ink2))
                                 .text_ellipsis()
                                 .child(SharedString::from(project.blocker.clone())),
+                        )
+                        .child(
+                            ghost_button("看待办", p.amber, &p)
+                                .id(SharedString::from(format!("view-todos-{id_view}")))
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.view_project_todos(&id_view, cx)
+                                })),
+                        )
+                        .child(
+                            ghost_button("去处理", p.ink2, &p)
+                                .id(SharedString::from(format!("handle-{id_block}")))
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    this.open_project_blocker(&id_block, window, cx)
+                                })),
                         ),
                 );
+            }
+
+            let total = overdue.len() + blocked.len();
+            if total > 3 {
+                rows.push(div().child(
+                    div()
+                        .cursor_pointer()
+                        .px(px(10.))
+                        .py(px(4.))
+                        .text_size(px(11.5))
+                        .text_color(rgb(p.ink3))
+                        .child(if self.pinned_expanded {
+                            "收起".to_string()
+                        } else {
+                            format!("还有 {} 项", total - 3)
+                        })
+                        .id("pinned-toggle")
+                        .on_click(cx.listener(|this, _, _, cx| this.toggle_pinned(cx))),
+                ));
             }
 
             children.push(
@@ -299,7 +383,16 @@ impl Workspace {
             );
         }
 
-        /* 已完成折叠 */
+        /* 已完成折叠：显示本周完成数，展开后可按今天 / 7 天内 / 更早筛选 */
+        let week_done = done
+            .iter()
+            .filter(|todo| DoneRange::Week.matches(todo.done_at, today))
+            .count();
+        let done_filtered: Vec<&Todo> = done
+            .iter()
+            .filter(|todo| self.done_range.matches(todo.done_at, today))
+            .collect();
+
         let mut done_block = div()
             .flex()
             .flex_col()
@@ -316,9 +409,9 @@ impl Workspace {
                     .text_size(px(12.))
                     .text_color(rgb(p.ink2))
                     .child(SharedString::from(format!(
-                        "{}已完成 {} 件",
+                        "{}本周已完成 {} 件",
                         if self.show_done { "▾ " } else { "▸ " },
-                        done.len()
+                        week_done
                     )))
                     .id("done-toggle")
                     .on_click(cx.listener(|this, _, _, cx| {
@@ -327,9 +420,46 @@ impl Workspace {
                     })),
             );
         if self.show_done {
+            let mut filters: Vec<AnyElement> = Vec::new();
+            for range in DONE_RANGES {
+                let active = self.done_range == range;
+                filters.push(
+                    div()
+                        .cursor_pointer()
+                        .px(px(9.))
+                        .py(px(3.))
+                        .rounded(px(999.))
+                        .text_size(px(11.))
+                        .when(active, |el| {
+                            el.bg(rgb(p.teal_soft))
+                                .text_color(rgb(p.teal))
+                                .font_weight(FontWeight::SEMIBOLD)
+                        })
+                        .when(!active, |el| el.text_color(rgb(p.ink3)))
+                        .child(range.label())
+                        .id(SharedString::from(format!("done-range-{}", range.label())))
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.done_range = range;
+                            cx.notify();
+                        }))
+                        .into_any_element(),
+                );
+            }
+            done_block = done_block.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(4.))
+                    .px(px(8.))
+                    .children(filters),
+            );
+
             let mut rows: Vec<Div> = Vec::new();
-            for todo in &done {
+            for todo in &done_filtered {
                 rows.push(self.todo_row(todo, false, cx));
+            }
+            if done_filtered.is_empty() {
+                rows.push(hint("该时间范围内没有已完成任务。", &p));
             }
             done_block = done_block.children(rows);
         }

@@ -28,6 +28,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
 
+# 文件选择对话框（导出 / 导入 JSON）
+rfd = "0.16"
+
 # 错误处理
 anyhow = "1"
 

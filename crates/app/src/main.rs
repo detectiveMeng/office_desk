@@ -28,6 +28,9 @@ fn main() -> anyhow::Result<()> {
     let mut data = storage.load()?;
     let now = Local::now().naive_local();
 
+    // 每天首次启动自动备份一次，保留最近 30 份；备份失败不阻断启动
+    let _ = storage.auto_backup_daily(&now.format("%Y%m%d").to_string());
+
     // 首次启动写入示例数据；已有任何数据的旧库不会被覆盖
     if data.seeded_at.is_none() {
         data = seed::seed(now.date(), now);

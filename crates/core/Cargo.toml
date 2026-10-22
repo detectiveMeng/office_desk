@@ -6,5 +6,8 @@ rust-version = "1.92"
 description = "办公工作台 —— 领域层（纯函数与纯数据结构，零 GPUI / SQLite 依赖）"
 
 [dependencies]
-# 日期：NaiveDate / NaiveDateTime / Datelike / Duration
-chrono = "0.4"
+# 日期：NaiveDate / NaiveDateTime / Datelike / Duration（serde 用于 JSON 导出/导入）
+chrono = { version = "0.4", features = ["serde"] }
+
+# 数据模型序列化（导出 / 导入 JSON）
+serde = { version = "1", features = ["derive"] }
