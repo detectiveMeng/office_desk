@@ -188,6 +188,7 @@ mod tests {
         s.projects.push(Project {
             id: "p1".into(),
             name: "Q3 增长方案".into(),
+            goal: "新客增长 30%\n跑通三条渠道".into(),
             current: "梳理漏斗".into(),
             next: "复盘数据".into(),
             blocker: "等法务确认".into(),

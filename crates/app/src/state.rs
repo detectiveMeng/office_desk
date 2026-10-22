@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration as StdDuration, SystemTime, UNIX_EPOCH};
 
 use chrono::{Duration, Local, NaiveDate, NaiveDateTime};
-use gpui_kit::component::input::{Input, InputEvent, InputState};
+use gpui_kit::component::input::{Input, InputEvent, InputState, TextareaState};
 use gpui_kit::component::{Icon, Sizable as _};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -149,6 +149,10 @@ pub struct Workspace {
     pub(crate) note_edit_input: Entity<InputState>,
     /// 当前正在编辑的灵感 id
     pub(crate) editing_note: Option<String>,
+    /// 项目目标 / 需求的多行编辑框（同一时间只编辑一个项目）
+    pub(crate) goal_edit_input: Entity<TextareaState>,
+    /// 当前正在编辑目标的项目 id
+    pub(crate) editing_goal: Option<String>,
     pub(crate) project_input: Entity<InputState>,
     /// 项目页状态筛选
     pub(crate) project_filter: ProjectFilter,
@@ -202,6 +206,10 @@ impl Workspace {
             InputState::new(window, cx).placeholder("新项目名称，回车添加")
         });
         let note_edit_input = cx.new(|cx| InputState::new(window, cx));
+        let goal_edit_input = cx.new(|cx| {
+            TextareaState::new(window, cx)
+                .placeholder("写下这个项目的目标 / 需求 / 要改造的内容，点击别处保存")
+        });
         let clear_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder("输入「清空」确认")
         });
@@ -261,6 +269,15 @@ impl Workspace {
                 }
             },
         ));
+        subscriptions.push(cx.subscribe_in(
+            &goal_edit_input,
+            window,
+            |this, _input, event: &InputEvent, _window, cx| {
+                if matches!(event, InputEvent::Blur) {
+                    this.save_goal(cx);
+                }
+            },
+        ));
         // 清空输入框内容变化时重绘，让确认按钮的可用态即时更新
         subscriptions.push(cx.subscribe_in(
             &clear_input,
@@ -299,6 +316,8 @@ impl Workspace {
             note_input,
             note_edit_input,
             editing_note: None,
+            goal_edit_input,
+            editing_goal: None,
             project_input,
             project_filter: ProjectFilter::All,
             confirm_delete: None,
@@ -777,6 +796,46 @@ impl Workspace {
 
     /* ---------------- 项目动作 ---------------- */
 
+    /// 点击项目卡上的目标摘要，展开为多行编辑
+    pub(crate) fn start_edit_goal(
+        &mut self,
+        id: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(goal) = self
+            .data
+            .projects
+            .iter()
+            .find(|p| p.id == id)
+            .map(|p| p.goal.clone())
+        else {
+            return;
+        };
+        self.editing_goal = Some(id.to_string());
+        self.goal_edit_input.update(cx, |state, cx| {
+            state.set_value(goal, window, cx);
+            state.focus(window, cx);
+        });
+        cx.notify();
+    }
+
+    /// 目标编辑框失焦时落库
+    pub(crate) fn save_goal(&mut self, cx: &mut Context<Self>) {
+        let Some(id) = self.editing_goal.take() else {
+            return;
+        };
+        let goal = self.goal_edit_input.read(cx).value().trim().to_string();
+        let now = self.now();
+        if let Some(project) = self.data.projects.iter_mut().find(|p| p.id == id) {
+            if project.goal != goal {
+                project.goal = goal;
+                project.updated_at = now;
+            }
+        }
+        self.commit(cx);
+    }
+
     fn save_project_field(
         &mut self,
         pid: &str,
@@ -1190,6 +1249,7 @@ fn new_project(id: String, name: String, now: NaiveDateTime) -> Project {
     Project {
         id,
         name,
+        goal: String::new(),
         current: String::new(),
         next: String::new(),
         blocker: String::new(),

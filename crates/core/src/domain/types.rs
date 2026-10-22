@@ -63,6 +63,9 @@ pub struct Todo {
 pub struct Project {
     pub id: String,
     pub name: String,
+    /// 目标 / 需求 / 改造内容，可多行手写；旧导出文件缺该字段时按空串处理
+    #[serde(default)]
+    pub goal: String,
     pub current: String,
     pub next: String,
     pub blocker: String,

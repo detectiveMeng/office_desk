@@ -4,7 +4,7 @@ use anyhow::Result;
 use rusqlite::Connection;
 
 /// 迁移脚本，下标 + 1 即版本号。只追加，不改历史项。
-pub const MIGRATIONS: &[&str] = &[V1];
+pub const MIGRATIONS: &[&str] = &[V1, V2];
 
 /// v1：完整初始表结构
 const V1: &str = r#"
@@ -72,6 +72,11 @@ CREATE INDEX idx_postpone_todo ON postpone_log(todo_id);
 CREATE INDEX idx_blocker_project ON blocker_log(project_id);
 "#;
 
+/// v2：项目卡新增「目标 / 需求」内容
+const V2: &str = r#"
+ALTER TABLE projects ADD COLUMN goal TEXT NOT NULL DEFAULT '';
+"#;
+
 /// 执行未应用的迁移。
 pub fn migrate(conn: &mut Connection) -> Result<()> {
     // meta 表先就位，才能读取当前版本
@@ -111,10 +116,36 @@ mod tests {
     fn migrate_is_idempotent() {
         let mut conn = Connection::open_in_memory().unwrap();
         migrate(&mut conn).unwrap();
-        assert_eq!(get_meta(&conn, "schema_version").unwrap().as_deref(), Some("1"));
+        assert_eq!(get_meta(&conn, "schema_version").unwrap().as_deref(), Some("2"));
 
         migrate(&mut conn).unwrap(); // 再次执行不应报错
-        assert_eq!(get_meta(&conn, "schema_version").unwrap().as_deref(), Some("1"));
+        assert_eq!(get_meta(&conn, "schema_version").unwrap().as_deref(), Some("2"));
+    }
+
+    #[test]
+    fn v1_database_gains_goal_column_with_empty_default() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        // 模拟旧版本库：只有 v1 表结构，版本号停在 1
+        conn.execute_batch(
+            "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+             INSERT INTO meta(key, value) VALUES('schema_version', '1');",
+        )
+        .unwrap();
+        conn.execute_batch(V1).unwrap();
+        conn.execute(
+            "INSERT INTO projects(id, name, status, updated_at)
+             VALUES('p1', '旧项目', 'active', '2026-10-01 09:00:00')",
+            [],
+        )
+        .unwrap();
+
+        migrate(&mut conn).unwrap();
+
+        assert_eq!(get_meta(&conn, "schema_version").unwrap().as_deref(), Some("2"));
+        let goal: String = conn
+            .query_row("SELECT goal FROM projects WHERE id = 'p1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(goal, "");
     }
 
     #[test]

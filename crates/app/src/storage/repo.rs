@@ -167,7 +167,7 @@ pub fn load(conn: &Connection) -> Result<DataSnapshot> {
 
     {
         let mut stmt = conn.prepare(
-            "SELECT id, name, current, next, blocker, status, updated_at FROM projects",
+            "SELECT id, name, goal, current, next, blocker, status, updated_at FROM projects",
         )?;
         let rows = stmt.query_map([], |r| {
             Ok((
@@ -178,14 +178,16 @@ pub fn load(conn: &Connection) -> Result<DataSnapshot> {
                 r.get::<_, String>(4)?,
                 r.get::<_, String>(5)?,
                 r.get::<_, String>(6)?,
+                r.get::<_, String>(7)?,
             ))
         })?;
         for row in rows {
-            let (id, name, current, next, blocker, status, updated_at) = row?;
+            let (id, name, goal, current, next, blocker, status, updated_at) = row?;
             let blocker_log = blockers.remove(&id).unwrap_or_default();
             snap.projects.push(Project {
                 id,
                 name,
+                goal,
                 current,
                 next,
                 blocker,
@@ -267,13 +269,14 @@ pub fn save(conn: &mut Connection, s: &DataSnapshot) -> Result<()> {
 
     {
         let mut stmt = tx.prepare(
-            "INSERT INTO projects(id, name, current, next, blocker, status, updated_at)
-             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO projects(id, name, goal, current, next, blocker, status, updated_at)
+             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         )?;
         for p in &s.projects {
             stmt.execute(params![
                 p.id,
                 p.name,
+                p.goal,
                 p.current,
                 p.next,
                 p.blocker,

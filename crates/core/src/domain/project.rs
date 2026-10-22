@@ -116,6 +116,7 @@ mod tests {
         Project {
             id: id.into(),
             name: id.into(),
+            goal: String::new(),
             current: String::new(),
             next: String::new(),
             blocker: blocker.into(),

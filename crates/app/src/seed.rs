@@ -20,6 +20,7 @@ pub fn seed(anchor: NaiveDate, now: NaiveDateTime) -> DataSnapshot {
     s.projects.push(Project {
         id: "p-q3".into(),
         name: "Q3 增长方案".into(),
+        goal: "把 Q3 新客增长做到 30%，跑通三条获客渠道的成本与转化模型。".into(),
         current: "补充渠道漏斗与价格带".into(),
         next: "评审 11 月投放预算".into(),
         blocker: "等法务确认活动条款".into(),
@@ -34,6 +35,7 @@ pub fn seed(anchor: NaiveDate, now: NaiveDateTime) -> DataSnapshot {
     s.projects.push(Project {
         id: "p-home".into(),
         name: "首页改版".into(),
+        goal: "用新首屏提升注册转化率，同时把组件化结构沉淀为可复用规范。".into(),
         current: "首屏视觉稿 v2 走查".into(),
         next: "埋点方案评审".into(),
         blocker: String::new(),
@@ -44,6 +46,7 @@ pub fn seed(anchor: NaiveDate, now: NaiveDateTime) -> DataSnapshot {
     s.projects.push(Project {
         id: "p-blog".into(),
         name: "个人博客迁移".into(),
+        goal: "把旧博客全量迁到新域名，保住 SEO 权重与历史链接。".into(),
         current: "旧文迁移与 301 跳转".into(),
         next: "配置 RSS 与站点地图".into(),
         blocker: String::new(),
