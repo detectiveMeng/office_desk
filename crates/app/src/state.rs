@@ -822,6 +822,9 @@ impl Workspace {
             }
         }
         self.project_inputs.remove(id);
+        if self.project_focus.as_deref() == Some(id) {
+            self.project_focus = None;
+        }
         self.notice = Some("已删除项目，关联待办已解除关联".into());
         self.commit(cx);
     }
