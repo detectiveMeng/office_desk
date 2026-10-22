@@ -67,6 +67,8 @@ pub struct Workspace {
     pub(crate) tag_filter: Option<String>,
     pub(crate) show_done: bool,
     pub(crate) week_offset: i32,
+    /// 「清理测试数据」是否处于待确认状态（点一次进入确认，再点一次执行）
+    pub(crate) clear_confirm: bool,
     pub(crate) review_inputs: [Entity<InputState>; 3],
     pub(crate) project_inputs: HashMap<String, ProjectInputs>,
     pub(crate) notice: Option<String>,
@@ -200,6 +202,7 @@ impl Workspace {
             tag_filter: None,
             show_done: false,
             week_offset: 0,
+            clear_confirm: false,
             review_inputs,
             project_inputs,
             notice: None,
@@ -549,6 +552,38 @@ impl Workspace {
         }
         cx.notify();
     }
+
+    /* ---------------- 清理测试数据 ---------------- */
+
+    pub(crate) fn clear_test_data(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // 破坏性操作：第一次点击只进入确认态，再点一次才真正清空
+        if !self.clear_confirm {
+            self.clear_confirm = true;
+            self.notice = Some("再点一次确认清理，清空后不可恢复".into());
+            cx.notify();
+            return;
+        }
+
+        self.clear_confirm = false;
+        self.data = cleared_snapshot(self.today, self.now());
+        self.project_inputs.clear();
+        self.tag_filter = None;
+        self.show_done = false;
+        self.week_offset = 0;
+        for input in &self.review_inputs {
+            input.update(cx, |state, cx| state.set_value("", window, cx));
+        }
+        self.notice = Some("已清空全部待办、项目、灵感与复盘".into());
+        self.commit(cx);
+    }
+}
+
+/// 清空后的快照：列表全空，但保留种子/顺延标记，避免重启后又灌回测试数据。
+fn cleared_snapshot(today: NaiveDate, now: NaiveDateTime) -> DataSnapshot {
+    let mut data = DataSnapshot::new();
+    data.seeded_at = Some(now);
+    data.last_run_date = Some(today);
+    data
 }
 
 fn review_value(data: &DataSnapshot, week_start: NaiveDate, index: usize) -> String {
@@ -782,6 +817,7 @@ impl Workspace {
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.page = page;
                         this.notice = None;
+                        this.clear_confirm = false;
                         cx.notify();
                     }))
                     .into_any_element(),
@@ -806,6 +842,30 @@ impl Workspace {
                 div()
                     .cursor_pointer()
                     .px(px(12.))
+                    .py(px(6.))
+                    .rounded(px(8.))
+                    .text_size(px(11.))
+                    .when(self.clear_confirm, |el| {
+                        el.bg(rgb(palette.red_soft))
+                            .text_color(rgb(palette.red))
+                    })
+                    .when(!self.clear_confirm, |el| el.text_color(rgb(palette.ink3)))
+                    .hover(|el| {
+                        el.bg(rgb(palette.red_soft))
+                            .text_color(rgb(palette.red))
+                    })
+                    .child(if self.clear_confirm {
+                        "再次点击确认清理"
+                    } else {
+                        "清理测试数据"
+                    })
+                    .id("clear-data")
+                    .on_click(cx.listener(|this, _, window, cx| this.clear_test_data(window, cx))),
+            )
+            .child(
+                div()
+                    .cursor_pointer()
+                    .px(px(12.))
                     .py(px(8.))
                     .rounded(px(8.))
                     .border_1()
@@ -819,5 +879,28 @@ impl Workspace {
                     .id("theme-toggle")
                     .on_click(cx.listener(|this, _, _, cx| this.toggle_theme(cx))),
             )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::NaiveDate;
+
+    use super::cleared_snapshot;
+
+    #[test]
+    fn cleared_snapshot_is_empty_but_keeps_seed_marker() {
+        let today = NaiveDate::from_ymd_opt(2026, 10, 22).unwrap();
+        let now = today.and_hms_opt(9, 0, 0).unwrap();
+
+        let data = cleared_snapshot(today, now);
+
+        assert!(data.todos.is_empty());
+        assert!(data.projects.is_empty());
+        assert!(data.notes.is_empty());
+        assert!(data.reviews.is_empty());
+        // 标记保留：下次启动不会再自动灌种子数据
+        assert_eq!(data.seeded_at, Some(now));
+        assert_eq!(data.last_run_date, Some(today));
     }
 }
