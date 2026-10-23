@@ -14,9 +14,33 @@ use crate::theme::Palette;
 use crate::tray;
 use crate::win32;
 
-/// 小窗宽高（logical px）
+/// 小窗宽度（logical px）
 const MINI_WIDTH: f32 = 320.;
-const MINI_HEIGHT: f32 = 420.;
+/// 最多完整展示的待办条数，超出的在窗口内滚动
+const MINI_VISIBLE_ROWS: usize = 3;
+/// 标题栏高度（含底部分隔线）
+const HEADER_HEIGHT: f32 = 32.;
+/// 底部按钮区高度（含顶部分隔线）
+const FOOTER_HEIGHT: f32 = 42.;
+/// 单条待办行高
+const ROW_HEIGHT: f32 = 32.;
+/// 行间距
+const ROW_GAP: f32 = 6.;
+/// 列表上下内边距合计
+const LIST_PADDING: f32 = 16.;
+/// 空态内容高度
+const EMPTY_HEIGHT: f32 = 46.;
+
+/// 小窗高度：只按前三行算，窗口不会撑成大块遮挡桌面。
+pub(crate) fn mini_height(item_count: usize) -> f32 {
+    let rows = item_count.min(MINI_VISIBLE_ROWS);
+    let body = if rows == 0 {
+        EMPTY_HEIGHT
+    } else {
+        rows as f32 * ROW_HEIGHT + (rows - 1) as f32 * ROW_GAP
+    };
+    HEADER_HEIGHT + LIST_PADDING + body + FOOTER_HEIGHT
+}
 
 /// 记录小窗句柄，供主窗口再次收起时复用、以及托盘恢复时隐藏。
 #[derive(Default)]
@@ -46,9 +70,20 @@ pub(crate) fn show_mini(
 ) {
     tray::ensure_started();
 
+    // 高度随条数（最多三行）变化，复用已有窗口时也要跟着收紧
+    let count = {
+        let ws = workspace.read(cx);
+        mini_items(&ws.data, ws.today).len()
+    };
+    let width = px(MINI_WIDTH);
+    let height = px(mini_height(count));
+
     if let Some(handle) = state.handle.borrow().clone() {
         if handle
-            .update(cx, |_, window, _| win32::show_window(window))
+            .update(cx, |_, window, _| {
+                window.resize(size(width, height));
+                win32::show_window(window);
+            })
             .is_ok()
         {
             return;
@@ -56,7 +91,7 @@ pub(crate) fn show_mini(
         *state.handle.borrow_mut() = None;
     }
 
-    let (origin, size) = {
+    let (origin, window_size) = {
         let bounds = window
             .display(cx)
             .map(|display| display.visible_bounds())
@@ -64,8 +99,6 @@ pub(crate) fn show_mini(
                 origin: point(px(0.), px(0.)),
                 size: size(px(1280.), px(720.)),
             });
-        let width = px(MINI_WIDTH);
-        let height = px(MINI_HEIGHT);
         let origin = point(
             bounds.origin.x + bounds.size.width - width - px(16.),
             bounds.origin.y + bounds.size.height - height - px(16.),
@@ -74,7 +107,10 @@ pub(crate) fn show_mini(
     };
 
     let options = WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(Bounds { origin, size })),
+        window_bounds: Some(WindowBounds::Windowed(Bounds {
+            origin,
+            size: window_size,
+        })),
         titlebar: Some(TitlebarOptions {
             title: Some("今日待办".into()),
             appears_transparent: true,
@@ -134,7 +170,8 @@ impl Render for MiniView {
             .flex()
             .flex_col()
             .size_full()
-            .bg(rgb(p.paper))
+            // 画布用最深的 bg，条目用 paper 卡片，形成明显色差
+            .bg(rgb(p.bg))
             .rounded(px(12.))
             .border_1()
             .border_color(rgb(p.line))
@@ -159,9 +196,9 @@ fn header(
     div()
         .flex()
         .items_center()
-        .gap(px(7.))
-        .px(px(12.))
-        .py(px(8.))
+        .gap(px(6.))
+        .px(px(10.))
+        .h(px(HEADER_HEIGHT))
         .bg(rgb(p.bg))
         .border_b_1()
         .border_color(rgb(p.line))
@@ -171,23 +208,23 @@ fn header(
                 .items_center()
                 .justify_center()
                 .flex_none()
-                .w(px(18.))
-                .h(px(18.))
-                .rounded(px(5.))
+                .w(px(16.))
+                .h(px(16.))
+                .rounded(px(4.))
                 .bg(rgb(p.teal))
-                .text_size(px(11.))
+                .text_size(px(10.))
                 .font_weight(FontWeight::BOLD)
-                .text_color(rgb(p.paper))
+                .text_color(rgb(p.bg))
                 .child("✓"),
         )
         .child(
             div()
-                .text_size(px(13.))
+                .text_size(px(12.))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(p.ink))
                 .child("今日待办"),
         )
-        .child(super::pill(format!("{count} 件"), p.teal, p.teal_soft))
+        .child(super::pill(format!("{count} 件"), p.teal_ink, p.teal_soft))
         .child(
             div()
                 .flex_1()
@@ -205,7 +242,7 @@ fn header(
                 .h(px(18.))
                 .rounded(px(5.))
                 .cursor_pointer()
-                .text_size(px(14.))
+                .text_size(px(13.))
                 .text_color(rgb(p.ink3))
                 .hover(|style| style.bg(rgb(p.hover)).text_color(rgb(p.ink)))
                 .child("×")
@@ -230,9 +267,9 @@ fn list(
         .flex_col()
         .flex_1()
         .min_h(px(0.))
-        .gap(px(6.))
+        .gap(px(ROW_GAP))
         .px(px(10.))
-        .py(px(8.))
+        .py(px(LIST_PADDING / 2.))
         .overflow_y_scroll()
         .children(items.into_iter().map(|todo| {
             let overdue = bucket(&todo, today) == Bucket::Overdue;
@@ -243,19 +280,19 @@ fn list(
             div()
                 .flex()
                 .items_center()
-                .gap(px(8.))
+                .gap(px(7.))
                 .px(px(8.))
-                .py(px(7.))
+                .h(px(ROW_HEIGHT))
                 .rounded(px(7.))
-                .bg(rgb(p.bg))
+                .bg(if overdue { rgb(p.red_soft) } else { rgb(p.paper) })
                 .border_1()
-                .border_color(if overdue { tint(p.red, 0x38) } else { rgb(p.line2) })
+                .border_color(if overdue { tint(p.red, 0x38) } else { rgb(p.line) })
                 .child(
                     div()
                         .id(toggle_id)
                         .flex_none()
-                        .w(px(13.))
-                        .h(px(13.))
+                        .w(px(12.))
+                        .h(px(12.))
                         .rounded(px(3.))
                         .border_1()
                         .border_color(rgb(fg))
@@ -269,25 +306,20 @@ fn list(
                     div()
                         .flex_1()
                         .min_w(px(0.))
-                        .flex()
-                        .flex_col()
-                        .gap(px(1.))
-                        .child(
-                            div()
-                                .text_size(px(12.5))
-                                .text_color(rgb(p.ink))
-                                .text_ellipsis()
-                                .child(SharedString::from(todo.title.clone())),
-                        )
-                        .when(overdue, |el| {
-                            el.child(
-                                div()
-                                    .text_size(px(10.5))
-                                    .text_color(rgb(p.red))
-                                    .child(format!("逾期 {} 天", overdue_days(&todo, today))),
-                            )
-                        }),
+                        .text_size(px(11.5))
+                        .text_color(rgb(p.ink2))
+                        .text_ellipsis()
+                        .child(SharedString::from(todo.title.clone())),
                 )
+                .when(overdue, |el| {
+                    el.child(
+                        div()
+                            .flex_none()
+                            .text_size(px(10.))
+                            .text_color(rgb(p.red))
+                            .child(format!("逾期 {} 天", overdue_days(&todo, today))),
+                    )
+                })
         }))
 }
 
@@ -297,15 +329,18 @@ fn empty(p: &Palette) -> impl IntoElement {
         .flex_1()
         .items_center()
         .justify_center()
-        .text_size(px(12.))
+        .text_size(px(11.))
         .text_color(rgb(p.ink3))
         .child("今天没有待办了")
 }
 
 fn footer(p: &Palette, cx: &mut Context<MiniView>) -> impl IntoElement {
     div()
-        .px(px(12.))
-        .py(px(9.))
+        .flex()
+        .items_center()
+        .px(px(10.))
+        .h(px(FOOTER_HEIGHT))
+        .bg(rgb(p.bg))
         .border_t_1()
         .border_color(rgb(p.line))
         .child(
@@ -315,11 +350,11 @@ fn footer(p: &Palette, cx: &mut Context<MiniView>) -> impl IntoElement {
                 .items_center()
                 .justify_center()
                 .w_full()
-                .py(px(6.))
-                .rounded(px(8.))
+                .py(px(5.))
+                .rounded(px(7.))
                 .bg(rgb(p.teal))
-                .text_color(rgb(p.paper))
-                .text_size(px(12.))
+                .text_color(rgb(p.bg))
+                .text_size(px(11.5))
                 .font_weight(FontWeight::SEMIBOLD)
                 .cursor_pointer()
                 .hover(|style| style.opacity(0.9))
@@ -333,7 +368,7 @@ fn footer(p: &Palette, cx: &mut Context<MiniView>) -> impl IntoElement {
 
 #[cfg(test)]
 mod tests {
-    use super::mini_items;
+    use super::{mini_height, mini_items, MINI_VISIBLE_ROWS};
     use chrono::NaiveDate;
     use office_desk_core::domain::types::{DataSnapshot, Todo, TodoStatus};
 
@@ -374,5 +409,21 @@ mod tests {
 
         let ids: Vec<String> = mini_items(&data, today).into_iter().map(|t| t.id).collect();
         assert_eq!(ids, vec!["overdue".to_string(), "today".to_string()]);
+    }
+
+    #[test]
+    fn mini_height_grows_until_three_rows_then_stops() {
+        let empty = mini_height(0);
+        let one = mini_height(1);
+        let two = mini_height(2);
+        let three = mini_height(MINI_VISIBLE_ROWS);
+
+        assert!(one < two && two < three);
+        assert!(empty <= three);
+        // 超过三行不再增高，改为窗口内滚动
+        assert_eq!(three, mini_height(4));
+        assert_eq!(three, mini_height(20));
+        // 三行高度应该保持克制，不遮挡桌面
+        assert!(three <= 200.0, "mini window too tall: {three}");
     }
 }
