@@ -3,6 +3,7 @@
 use gpui_kit::{Point, Size, Window};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use windows_sys::Win32::Foundation::{HWND, POINT, RECT};
+use windows_sys::Win32::Graphics::Dwm::{DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE, DwmSetWindowAttribute};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetWindowRect, HWND_TOPMOST, IsWindowVisible, SW_HIDE, SW_SHOWNOACTIVATE,
     SWP_NOACTIVATE, SWP_NOSIZE, SetWindowPos, ShowWindow,
@@ -57,6 +58,24 @@ pub(crate) fn set_window_bounds(
             0,
             0,
             SWP_NOSIZE | SWP_NOACTIVATE,
+        );
+    }
+}
+
+/// 去掉 DWM 给窗口画的原生描边（Windows 11 会给活动窗口加一圈强调色边框）。
+///
+/// 小精灵窗口整窗透明，这圈边框会显得像多出来一个外框，所以显式关掉。
+pub(crate) fn hide_native_border(window: &Window) {
+    let Some(hwnd) = current_hwnd(window) else {
+        return;
+    };
+    let color: u32 = DWMWA_COLOR_NONE;
+    unsafe {
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_BORDER_COLOR as u32,
+            &color as *const u32 as *const _,
+            std::mem::size_of::<u32>() as u32,
         );
     }
 }

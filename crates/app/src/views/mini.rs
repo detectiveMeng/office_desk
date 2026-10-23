@@ -153,6 +153,8 @@ pub(crate) fn show_mini(
             ..Default::default()
         }),
         kind: WindowKind::PopUp,
+        // 收起态是浮在桌面上的小精灵，窗口背景必须透明，只留精灵与角标
+        window_background: WindowBackgroundAppearance::Transparent,
         is_resizable: false,
         is_minimizable: false,
         is_movable: false,
@@ -166,11 +168,19 @@ pub(crate) fn show_mini(
     let opened = cx.open_window(options, move |window, cx| {
         if let Some(hwnd) = win32::current_hwnd(window) {
             tray::set_mini_hwnd(hwnd as isize);
+            // 整窗透明后不能再带 DWM 的原生描边，否则精灵外面会多一圈框
+            win32::hide_native_border(window);
         }
         // 贴右下角并置顶，保证小精灵浮在桌面之上
         win32::set_window_bounds(window, origin, window_size);
         let view = cx.new(|cx| MiniView::new(workspace_for_view.clone(), state_for_view.clone(), cx));
-        cx.new(|cx| base::Root::new(view, window, cx))
+        // gpui-component 的 Root 默认给表面刷主题底色，这里覆盖成透明，
+        // 否则窗口透明了也会被这层背景填满。
+        cx.new(|cx| {
+            let mut root = base::Root::new(view, window, cx);
+            root.style().refine(&StyleRefinement::default().bg(transparent_black()));
+            root
+        })
     });
 
     if let Ok(handle) = opened {
@@ -247,14 +257,12 @@ impl Render for MiniView {
 }
 
 /// 收起态：一枚小精灵（圆角方块 + 眼睛 + 微笑），右上角显示待办数量。
+///
+/// 窗口背景是透明的，这里不画任何底板，只留精灵本体与角标。
 fn pet(count: usize, overdue: bool, p: &Palette) -> impl IntoElement {
     div()
         .flex()
         .size_full()
-        .bg(rgb(p.bg))
-        .rounded(px(14.))
-        .border_1()
-        .border_color(rgb(p.line))
         .child(
             div()
                 .relative()
