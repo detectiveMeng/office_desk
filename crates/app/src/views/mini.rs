@@ -2,6 +2,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -34,6 +35,12 @@ const ROW_GAP: f32 = 6.;
 const LIST_PADDING: f32 = 16.;
 /// 空态内容高度
 const EMPTY_HEIGHT: f32 = 46.;
+/// 悬浮多久才展开卡片（毫秒）；不想等可以直接点一下
+const HOVER_DELAY: Duration = Duration::from_millis(3000);
+/// 光标移动超过这个距离（物理像素）就当作拖动而不是点击
+const DRAG_THRESHOLD: i32 = 4;
+/// 光标轮询间隔：拖动需要跟手，取 30ms
+const POLL_INTERVAL: Duration = Duration::from_millis(30);
 
 /// 展开态高度：只按前三行算，窗口不会撑成大块遮挡桌面。
 pub(crate) fn mini_height(item_count: usize) -> f32 {
@@ -63,6 +70,8 @@ pub(crate) struct MiniWindowState {
     pub(crate) expanded: Cell<bool>,
     /// 最近一次渲染时的待办条数，用于按行数算展开高度
     pub(crate) count: Cell<usize>,
+    /// 用户拖动后的锚点（右下角逻辑坐标）；为空时贴屏幕右下角
+    pub(crate) anchor: Cell<Option<(f32, f32)>>,
 }
 
 /// 小窗展示的任务：今天到期 + 逾期，按今日清单口径排序。
@@ -79,20 +88,33 @@ pub(crate) fn mini_items(data: &DataSnapshot, today: chrono::NaiveDate) -> Vec<T
 }
 
 /// 把窗口贴到桌面右下角：`expanded` 为真时是卡片，否则只占小精灵的方块。
-fn place(window: &mut Window, cx: &mut App, expanded: bool, count: usize) {
-    let Some(display) = window.display(cx) else {
-        return;
-    };
-    let area = display.visible_bounds();
+///
+/// `anchor` 是用户拖动后记住的右下角坐标，两种尺寸都以它为锚点，展开时向左上长。
+fn place(
+    window: &mut Window,
+    cx: &mut App,
+    expanded: bool,
+    count: usize,
+    anchor: Option<(f32, f32)>,
+) {
     let (w, h) = if expanded {
         (MINI_WIDTH, mini_height(count))
     } else {
         (PET_SIZE, PET_SIZE)
     };
-    let origin = point(
-        area.origin.x + area.size.width - px(w) - px(SCREEN_MARGIN),
-        area.origin.y + area.size.height - px(h) - px(SCREEN_MARGIN),
-    );
+    let origin = match anchor {
+        Some((ax, ay)) => point(px(ax - w), px(ay - h)),
+        None => {
+            let Some(display) = window.display(cx) else {
+                return;
+            };
+            let area = display.visible_bounds();
+            point(
+                area.origin.x + area.size.width - px(w) - px(SCREEN_MARGIN),
+                area.origin.y + area.size.height - px(h) - px(SCREEN_MARGIN),
+            )
+        }
+    };
     win32::set_window_bounds(window, origin, size(px(w), px(h)));
 }
 
@@ -117,7 +139,7 @@ pub(crate) fn show_mini(
     if let Some(handle) = state.handle.borrow().clone() {
         if handle
             .update(cx, |_, window, cx| {
-                place(window, cx, false, count);
+                place(window, cx, false, count, state.anchor.get());
                 win32::show_window(window);
             })
             .is_ok()
@@ -128,6 +150,7 @@ pub(crate) fn show_mini(
     }
 
     let (origin, window_size) = {
+        let anchor = state.anchor.get();
         let bounds = window
             .display(cx)
             .map(|display| display.visible_bounds())
@@ -135,10 +158,13 @@ pub(crate) fn show_mini(
                 origin: point(px(0.), px(0.)),
                 size: size(px(1280.), px(720.)),
             });
-        let origin = point(
-            bounds.origin.x + bounds.size.width - width - px(SCREEN_MARGIN),
-            bounds.origin.y + bounds.size.height - height - px(SCREEN_MARGIN),
-        );
+        let origin = match anchor {
+            Some((ax, ay)) => point(px(ax - PET_SIZE), px(ay - PET_SIZE)),
+            None => point(
+                bounds.origin.x + bounds.size.width - width - px(SCREEN_MARGIN),
+                bounds.origin.y + bounds.size.height - height - px(SCREEN_MARGIN),
+            ),
+        };
         (origin, size(width, height))
     };
 
@@ -173,14 +199,9 @@ pub(crate) fn show_mini(
         }
         // 贴右下角并置顶，保证小精灵浮在桌面之上
         win32::set_window_bounds(window, origin, window_size);
-        let view = cx.new(|cx| MiniView::new(workspace_for_view.clone(), state_for_view.clone(), cx));
-        // gpui-component 的 Root 默认给表面刷主题底色，这里覆盖成透明，
-        // 否则窗口透明了也会被这层背景填满。
-        cx.new(|cx| {
-            let mut root = base::Root::new(view, window, cx);
-            root.style().refine(&StyleRefinement::default().bg(transparent_black()));
-            root
-        })
+        // 这里刻意不用 base::Root：它会在表面刷主题底色、并在 decorate 里画一圈
+        // 1px 窗口描边（透明窗口顶部会露出一条白线）。小窗不需要主题与快捷键。
+        cx.new(|cx| MiniView::new(workspace_for_view.clone(), state_for_view.clone(), cx))
     });
 
     if let Ok(handle) = opened {
@@ -188,10 +209,25 @@ pub(crate) fn show_mini(
     }
 }
 
-/// 右下角小精灵视图：悬浮展开、移开收起。
+/// 一次按下到松开的指针过程：用来区分「点击」和「拖动」。
+#[derive(Clone, Copy)]
+struct Drag {
+    /// 按下时的光标位置（物理像素）
+    cursor: (i32, i32),
+    /// 按下时的窗口左上角（物理像素）
+    origin: (i32, i32),
+    /// 是否已经越过拖动阈值
+    moved: bool,
+}
+
+/// 右下角小精灵视图：悬浮 3 秒展开、移开收起，按住可以拖到桌面任意位置。
 struct MiniView {
     workspace: Entity<Workspace>,
     state: Rc<MiniWindowState>,
+    /// 光标在小精灵上停留的起点，用于 3 秒延迟
+    hover_since: Cell<Option<Instant>>,
+    /// 当前的按下/拖动过程
+    drag: RefCell<Option<Drag>>,
     _observe: Subscription,
     _poll: Task<()>,
 }
@@ -199,14 +235,12 @@ struct MiniView {
 impl MiniView {
     fn new(workspace: Entity<Workspace>, state: Rc<MiniWindowState>, cx: &mut Context<Self>) -> Self {
         let _observe = cx.observe(&workspace, |_, _, cx| cx.notify());
-        // 用系统光标轮询驱动展开/收起：无焦点的弹出窗 hover 事件并不可靠
+        // 用系统光标轮询驱动展开/收起与拖动：无焦点的弹出窗 hover / 拖动事件并不可靠
         let _poll = cx.spawn(async move |this, cx| {
             loop {
-                cx.background_executor()
-                    .timer(std::time::Duration::from_millis(90))
-                    .await;
+                cx.background_executor().timer(POLL_INTERVAL).await;
                 if this
-                    .update_in(cx, |this, window, cx| this.sync_hover(window, cx))
+                    .update_in(cx, |this, window, cx| this.sync_pointer(window, cx))
                     .is_err()
                 {
                     break;
@@ -216,20 +250,100 @@ impl MiniView {
         Self {
             workspace,
             state,
+            hover_since: Cell::new(None),
+            drag: RefCell::new(None),
             _observe,
             _poll,
         }
     }
 
-    /// 光标进入小精灵就展开，离开卡片就收起。
-    fn sync_hover(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let inside = win32::cursor_inside(window);
-        if inside == self.state.expanded.get() {
+    fn expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.state.expanded.get() {
             return;
         }
-        self.state.expanded.set(inside);
-        place(window, cx, inside, self.state.count.get());
+        self.hover_since.set(None);
+        self.state.expanded.set(true);
+        place(window, cx, true, self.state.count.get(), self.state.anchor.get());
         window.refresh();
+    }
+
+    fn collapse(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.hover_since.set(None);
+        self.state.expanded.set(false);
+        place(window, cx, false, self.state.count.get(), self.state.anchor.get());
+        window.refresh();
+    }
+
+    /// 每 30ms 巡检一次系统光标：处理悬浮展开、点击展开、拖动与收起。
+    fn sync_pointer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(cursor) = win32::cursor_pos() else {
+            return;
+        };
+        let down = win32::left_button_down();
+        let inside = win32::cursor_inside(window);
+
+        // 已经按下：跟上光标移动，松开时判定是拖动还是点击
+        let active = *self.drag.borrow();
+        if let Some(drag) = active {
+            if down {
+                let dx = cursor.0 - drag.cursor.0;
+                let dy = cursor.1 - drag.cursor.1;
+                let moved = drag.moved || dx.abs() + dy.abs() >= DRAG_THRESHOLD;
+                if moved {
+                    *self.drag.borrow_mut() = Some(Drag { moved: true, ..drag });
+                    win32::move_window(window, drag.origin.0 + dx, drag.origin.1 + dy);
+                }
+            } else {
+                let moved = self.drag.borrow().map(|d| d.moved).unwrap_or(false);
+                *self.drag.borrow_mut() = None;
+                if moved {
+                    // 松手前把窗口补到光标的最终位置，避免最后几个像素没跟上
+                    let x = drag.origin.0 + (cursor.0 - drag.cursor.0);
+                    let y = drag.origin.1 + (cursor.1 - drag.cursor.1);
+                    win32::move_window(window, x, y);
+                    // 记住落点，之后展开/收起都以这个右下角为锚
+                    if let Some(anchor) = win32::anchor_for(window, x, y) {
+                        self.state.anchor.set(Some(anchor));
+                    }
+                } else if inside && !self.state.expanded.get() {
+                    // 原地松开 = 点击，立即展开，不用等 3 秒
+                    self.expand(window, cx);
+                }
+            }
+            return;
+        }
+
+        // 收起态左键按下：进入拖动候选，移动够远才真正挪窗口
+        if down && inside && !self.state.expanded.get() {
+            self.hover_since.set(None);
+            if let Some((left, top, _, _)) = win32::window_rect(window) {
+                *self.drag.borrow_mut() = Some(Drag {
+                    cursor,
+                    origin: (left, top),
+                    moved: false,
+                });
+            }
+            return;
+        }
+
+        if self.state.expanded.get() {
+            // 光标离开卡片就收起
+            if !inside {
+                self.collapse(window, cx);
+            }
+            return;
+        }
+
+        // 收起态：悬停满 3 秒才展开
+        if inside {
+            match self.hover_since.get() {
+                None => self.hover_since.set(Some(Instant::now())),
+                Some(since) if since.elapsed() >= HOVER_DELAY => self.expand(window, cx),
+                Some(_) => {}
+            }
+        } else {
+            self.hover_since.set(None);
+        }
     }
 }
 

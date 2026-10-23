@@ -4,6 +4,7 @@ use gpui_kit::{Point, Size, Window};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use windows_sys::Win32::Foundation::{HWND, POINT, RECT};
 use windows_sys::Win32::Graphics::Dwm::{DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE, DwmSetWindowAttribute};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetWindowRect, HWND_TOPMOST, IsWindowVisible, SW_HIDE, SW_SHOWNOACTIVATE,
     SWP_NOACTIVATE, SWP_NOSIZE, SetWindowPos, ShowWindow,
@@ -33,22 +34,37 @@ pub(crate) fn show_window(window: &Window) {
     }
 }
 
-/// 移动 + 调整窗口尺寸（逻辑像素），并保持置顶，用于小精灵在「图标 / 卡片」两态间切换。
-///
-/// 尺寸必须走 `Window::resize` 才能让 GPUI 重新布局；只移动位置时才用 Win32，
-/// 这样缩放的同时还能保住右下角锚点。
+/// 外框相对客户区的左上偏移（物理像素）：DWM 的不可见边框左右、上下各占一半。
+fn border_offset(window: &Window, client: Size<gpui_kit::Pixels>) -> (i32, i32) {
+    let Some((left, top, right, bottom)) = window_rect(window) else {
+        return (0, 0);
+    };
+    let scale = window.scale_factor();
+    let client_w = (client.width.as_f32() * scale).round() as i32;
+    let client_h = (client.height.as_f32() * scale).round() as i32;
+    (
+        ((right - left) - client_w) / 2,
+        ((bottom - top) - client_h) / 2,
+    )
+}
+
+/// 按客户区坐标摆窗口：`Window::resize` 用的是客户区尺寸，而 SetWindowPos 定位的是
+/// 含不可见边框的外框，这里把目标客户区左上角换算成外框左上角，避免每次缩放都偏移。
 pub(crate) fn set_window_bounds(
     window: &mut Window,
     origin: Point<gpui_kit::Pixels>,
     size: Size<gpui_kit::Pixels>,
 ) {
+    // 必须在 resize 之前取偏移：resize 是异步落到系统窗口上的，此时外框与
+    // `window.bounds()` 还是同一时刻的旧值，两者之差恰好就是不可见边框。
+    let (offset_x, offset_y) = border_offset(window, window.bounds().size);
     window.resize(size);
     let Some(hwnd) = current_hwnd(window) else {
         return;
     };
     let scale = window.scale_factor();
-    let x = (origin.x.as_f32() * scale).round() as i32;
-    let y = (origin.y.as_f32() * scale).round() as i32;
+    let x = (origin.x.as_f32() * scale).round() as i32 - offset_x;
+    let y = (origin.y.as_f32() * scale).round() as i32 - offset_y;
     unsafe {
         SetWindowPos(
             hwnd,
@@ -78,6 +94,60 @@ pub(crate) fn hide_native_border(window: &Window) {
             std::mem::size_of::<u32>() as u32,
         );
     }
+}
+
+/// 当前系统光标位置（物理像素）。
+pub(crate) fn cursor_pos() -> Option<(i32, i32)> {
+    let mut point = POINT { x: 0, y: 0 };
+    unsafe { (GetCursorPos(&mut point) != 0).then_some((point.x, point.y)) }
+}
+
+/// 左键是否处于按下状态。
+pub(crate) fn left_button_down() -> bool {
+    unsafe { (GetAsyncKeyState(VK_LBUTTON as i32) as u16 & 0x8000) != 0 }
+}
+
+/// 窗口矩形（物理像素）：左上、右下。
+pub(crate) fn window_rect(window: &Window) -> Option<(i32, i32, i32, i32)> {
+    let hwnd = current_hwnd(window)?;
+    let mut rect = RECT {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+    };
+    unsafe {
+        (GetWindowRect(hwnd, &mut rect) != 0).then_some((rect.left, rect.top, rect.right, rect.bottom))
+    }
+}
+
+/// 只移动窗口位置（不改尺寸），并保持置顶，用于拖动小精灵。
+pub(crate) fn move_window(window: &Window, x: i32, y: i32) {
+    let Some(hwnd) = current_hwnd(window) else {
+        return;
+    };
+    unsafe {
+        SetWindowPos(
+            hwnd,
+            HWND_TOPMOST,
+            x,
+            y,
+            0,
+            0,
+            SWP_NOSIZE | SWP_NOACTIVATE,
+        );
+    }
+}
+
+/// 外框左上角在 (x, y) 时，客户区右下角的逻辑坐标；用于记住拖动落点。
+pub(crate) fn anchor_for(window: &Window, x: i32, y: i32) -> Option<(f32, f32)> {
+    let client = window.bounds().size;
+    let (offset_x, offset_y) = border_offset(window, client);
+    let scale = window.scale_factor();
+    Some((
+        (x + offset_x) as f32 / scale + client.width.as_f32(),
+        (y + offset_y) as f32 / scale + client.height.as_f32(),
+    ))
 }
 
 /// 鼠标是否落在窗口矩形内（窗口隐藏时一律返回 false）。
