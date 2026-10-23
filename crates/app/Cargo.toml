@@ -34,6 +34,16 @@ rfd = "0.16"
 # 错误处理
 anyhow = "1"
 
+# Win32：托盘图标、窗口显隐（仅 Windows）
+raw-window-handle = "0.6"
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
 [build-dependencies]
 # 把 assets/icon.rc（窗口 / 任务栏 / exe 图标）编译并链接进二进制
 embed-resource = "3"

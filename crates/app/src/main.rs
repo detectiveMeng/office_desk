@@ -8,7 +8,11 @@ mod seed;
 mod state;
 mod storage;
 mod theme;
+mod tray;
 mod views;
+mod win32;
+
+use std::rc::Rc;
 
 use chrono::Local;
 use gpui_kit::*;
@@ -60,8 +64,27 @@ fn main() -> anyhow::Result<()> {
         };
 
         let data = data.clone();
+        let mini_state = Rc::new(views::mini::MiniWindowState::default());
         gpui_kit::open_window(options, cx, move |window, cx| {
-            cx.new(|cx| Workspace::new(window, cx, storage, data.clone(), config))
+            let workspace = cx.new(|cx| Workspace::new(window, cx, storage, data.clone(), config));
+
+            // 点 × 不退出：收起主窗口，保留托盘图标与右下角今日待办小窗
+            let workspace_for_close = workspace.clone();
+            let mini_state_for_close = mini_state.clone();
+            window.on_window_should_close(cx, move |window, cx| {
+                if let Some(hwnd) = win32::current_hwnd(window) {
+                    tray::set_main_hwnd(hwnd as isize);
+                }
+                win32::hide_window(window);
+                let workspace = workspace_for_close.clone();
+                let state = mini_state_for_close.clone();
+                window.defer(cx, move |window, cx| {
+                    views::mini::show_mini(window, cx, workspace.clone(), &state);
+                });
+                false
+            });
+
+            workspace
         })
         .expect("打开主窗口失败");
     });

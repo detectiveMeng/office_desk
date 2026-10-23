@@ -8,7 +8,7 @@ use std::time::{Duration as StdDuration, SystemTime, UNIX_EPOCH};
 
 use chrono::{Duration, Local, NaiveDate, NaiveDateTime};
 use gpui_kit::component::input::{Input, InputEvent, InputState, TextareaState};
-use gpui_kit::component::{Icon, Sizable as _};
+use gpui_kit::component::{Icon, Sizable as _, Theme};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use office_desk_core::domain::date::start_of_week;
@@ -194,6 +194,7 @@ impl Workspace {
     ) -> Self {
         let today = Local::now().date_naive();
         let week_start = start_of_week(today);
+        apply_caret_theme(config.theme, cx);
 
         let quick_input = cx.new(|cx| {
             InputState::new(window, cx)
@@ -987,6 +988,7 @@ impl Workspace {
     pub(crate) fn toggle_theme(&mut self, cx: &mut Context<Self>) {
         self.mode = self.mode.toggled();
         self.palette = Palette::of(self.mode);
+        apply_caret_theme(self.mode, cx);
         let config = Config { theme: self.mode };
         if let Err(err) = config.save() {
             self.notice = Some(format!("主题已切换，但保存配置失败：{err}"));
@@ -1272,6 +1274,12 @@ fn review_value(data: &DataSnapshot, week_start: NaiveDate, index: usize) -> Str
 }
 
 static ID_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// 输入框闪烁光标跟随应用主题：组件库默认光标偏黑，深色主题下几乎不可见。
+fn apply_caret_theme(mode: ThemeMode, cx: &mut App) {
+    let caret = mode.caret_color();
+    Theme::update(cx, |theme| theme.caret = rgb(caret).into());
+}
 
 fn next_id(prefix: &str) -> String {
     let micros = SystemTime::now()

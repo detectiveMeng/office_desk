@@ -7,7 +7,7 @@ use gpui_kit::*;
 use office_desk_core::domain::todo::{bucket, group_future, overdue_days, sort_for_today, Bucket};
 use office_desk_core::domain::types::{Project, Todo, TodoStatus};
 
-use super::{card, ghost_button, hint, pill, primary_button, priority_pill, weekday_cn};
+use super::{card, ghost_button, hint, pill, primary_button, priority_pill, tint, weekday_cn};
 use crate::state::{DoneRange, Workspace, DONE_RANGES};
 use crate::theme::Palette;
 
@@ -147,6 +147,8 @@ impl Workspace {
                         .py(px(7.))
                         .rounded(px(8.))
                         .bg(rgb(p.red_soft))
+                        .border_1()
+                        .border_color(tint(p.red, 0x38))
                         .child(
                             div()
                                 .flex_1()
@@ -186,6 +188,8 @@ impl Workspace {
                         .py(px(7.))
                         .rounded(px(8.))
                         .bg(rgb(p.amber_soft))
+                        .border_1()
+                        .border_color(tint(p.amber, 0x38))
                         .child(
                             div()
                                 .text_size(px(13.))
@@ -532,10 +536,11 @@ impl Workspace {
             .px(px(10.))
             .py(px(8.))
             .rounded(px(8.))
+            .bg(rgb(p.bg))
+            .border_1()
+            .border_color(rgb(p.line2))
             .when(overdue && overdue_style, |el| {
-                el.bg(rgb(p.red_soft))
-                    .border_l_3()
-                    .border_color(rgb(p.red))
+                el.bg(rgb(p.red_soft)).border_color(tint(p.red, 0x38))
             })
             .when(!overdue && !done, |el| el.hover(|style| style.bg(rgb(p.hover))))
             .child(

@@ -1,5 +1,6 @@
 //! 四个视图共用的轻量组件样式。
 
+pub(crate) mod mini;
 pub(crate) mod notes;
 pub(crate) mod projects;
 pub(crate) mod review;
@@ -107,6 +108,11 @@ pub(crate) fn hint(text: impl Into<SharedString>, p: &Palette) -> Div {
         .text_size(px(12.))
         .text_color(rgb(p.ink3))
         .child(text.into())
+}
+
+/// 把主题色按透明度叠加到背景上（近似 demo 里的 color-mix）。
+pub(crate) fn tint(color: u32, alpha: u8) -> Rgba {
+    rgba((color << 8) | alpha as u32)
 }
 
 pub(crate) fn weekday_cn(day: NaiveDate) -> &'static str {

@@ -4385,11 +4385,13 @@ dependencies = [
  "embed-resource",
  "gpui-kit",
  "office_desk_core",
+ "raw-window-handle",
  "rfd",
  "rusqlite",
  "serde",
  "serde_json",
  "toml 0.8.23",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

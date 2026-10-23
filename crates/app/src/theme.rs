@@ -25,6 +25,17 @@ impl ThemeMode {
             ThemeMode::Dark => ThemeMode::Light,
         }
     }
+
+    /// 文本输入框的闪烁光标色。
+    ///
+    /// 组件库默认光标偏黑，深色主题下几乎看不见，因此深色主题固定用纯白，
+    /// 浅色主题沿用正文墨色。
+    pub fn caret_color(self) -> u32 {
+        match self {
+            ThemeMode::Light => 0x152420,
+            ThemeMode::Dark => 0xffffff,
+        }
+    }
 }
 
 /// 一套完整色板。所有颜色均为 `0xRRGGBB`，渲染时用 `rgb()`。
@@ -91,5 +102,16 @@ impl Palette {
                 hover: 0x1e2a27,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dark_caret_is_white_and_light_caret_is_ink() {
+        assert_eq!(ThemeMode::Dark.caret_color(), 0xffffff);
+        assert_eq!(ThemeMode::Light.caret_color(), Palette::of(ThemeMode::Light).ink);
     }
 }
