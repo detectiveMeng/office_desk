@@ -5,7 +5,7 @@ use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use windows_sys::Win32::Foundation::{HWND, POINT, RECT};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetWindowRect, HWND_TOPMOST, IsWindowVisible, SW_HIDE, SW_SHOWNOACTIVATE,
-    SWP_NOACTIVATE, SetWindowPos, ShowWindow,
+    SWP_NOACTIVATE, SWP_NOSIZE, SetWindowPos, ShowWindow,
 };
 
 /// 取窗口原生句柄（仅 Windows 平台有效）。
@@ -34,18 +34,30 @@ pub(crate) fn show_window(window: &Window) {
 
 /// 移动 + 调整窗口尺寸（逻辑像素），并保持置顶，用于小精灵在「图标 / 卡片」两态间切换。
 ///
-/// 走 Win32 而不是 `Window::resize`，因为缩放的同时还要保住右下角锚点。
-pub(crate) fn set_window_bounds(window: &Window, origin: Point<gpui_kit::Pixels>, size: Size<gpui_kit::Pixels>) {
+/// 尺寸必须走 `Window::resize` 才能让 GPUI 重新布局；只移动位置时才用 Win32，
+/// 这样缩放的同时还能保住右下角锚点。
+pub(crate) fn set_window_bounds(
+    window: &mut Window,
+    origin: Point<gpui_kit::Pixels>,
+    size: Size<gpui_kit::Pixels>,
+) {
+    window.resize(size);
     let Some(hwnd) = current_hwnd(window) else {
         return;
     };
     let scale = window.scale_factor();
     let x = (origin.x.as_f32() * scale).round() as i32;
     let y = (origin.y.as_f32() * scale).round() as i32;
-    let w = (size.width.as_f32() * scale).round() as i32;
-    let h = (size.height.as_f32() * scale).round() as i32;
     unsafe {
-        SetWindowPos(hwnd, HWND_TOPMOST, x, y, w, h, SWP_NOACTIVATE);
+        SetWindowPos(
+            hwnd,
+            HWND_TOPMOST,
+            x,
+            y,
+            0,
+            0,
+            SWP_NOSIZE | SWP_NOACTIVATE,
+        );
     }
 }
 
