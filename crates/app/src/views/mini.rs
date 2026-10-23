@@ -1,6 +1,6 @@
-//! 收起后的右下角小窗：只展示「今日待办」，点标题可拖拽，点「打开工作台」恢复主窗口。
+//! 收起后的桌面小精灵：平时只是一枚带待办数量的图标，鼠标悬浮时展开成「今日待办」卡片。
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use gpui_kit::prelude::*;
@@ -14,7 +14,11 @@ use crate::theme::Palette;
 use crate::tray;
 use crate::win32;
 
-/// 小窗宽度（logical px）
+/// 小精灵图标尺寸（logical px）
+const PET_SIZE: f32 = 56.;
+/// 距桌面右下角的边距
+const SCREEN_MARGIN: f32 = 16.;
+/// 展开后的卡片宽度（logical px）
 const MINI_WIDTH: f32 = 320.;
 /// 最多完整展示的待办条数，超出的在窗口内滚动
 const MINI_VISIBLE_ROWS: usize = 3;
@@ -31,7 +35,7 @@ const LIST_PADDING: f32 = 16.;
 /// 空态内容高度
 const EMPTY_HEIGHT: f32 = 46.;
 
-/// 小窗高度：只按前三行算，窗口不会撑成大块遮挡桌面。
+/// 展开态高度：只按前三行算，窗口不会撑成大块遮挡桌面。
 pub(crate) fn mini_height(item_count: usize) -> f32 {
     let rows = item_count.min(MINI_VISIBLE_ROWS);
     let body = if rows == 0 {
@@ -42,10 +46,23 @@ pub(crate) fn mini_height(item_count: usize) -> f32 {
     HEADER_HEIGHT + LIST_PADDING + body + FOOTER_HEIGHT
 }
 
-/// 记录小窗句柄，供主窗口再次收起时复用、以及托盘恢复时隐藏。
+/// 图标角标文案，超过两位数收口成 99+。
+pub(crate) fn badge_label(count: usize) -> String {
+    if count > 99 {
+        "99+".to_string()
+    } else {
+        count.to_string()
+    }
+}
+
+/// 记录小窗句柄与展开状态，供主窗口再次收起时复用、以及托盘恢复时隐藏。
 #[derive(Default)]
 pub(crate) struct MiniWindowState {
     pub(crate) handle: RefCell<Option<AnyWindowHandle>>,
+    /// 是否已展开成待办卡片；未展开时只显示小精灵图标
+    pub(crate) expanded: Cell<bool>,
+    /// 最近一次渲染时的待办条数，用于按行数算展开高度
+    pub(crate) count: Cell<usize>,
 }
 
 /// 小窗展示的任务：今天到期 + 逾期，按今日清单口径排序。
@@ -61,7 +78,25 @@ pub(crate) fn mini_items(data: &DataSnapshot, today: chrono::NaiveDate) -> Vec<T
     items
 }
 
-/// 显示（必要时创建）右下角小窗。
+/// 把窗口贴到桌面右下角：`expanded` 为真时是卡片，否则只占小精灵的方块。
+fn place(window: &mut Window, cx: &mut App, expanded: bool, count: usize) {
+    let Some(display) = window.display(cx) else {
+        return;
+    };
+    let area = display.visible_bounds();
+    let (w, h) = if expanded {
+        (MINI_WIDTH, mini_height(count))
+    } else {
+        (PET_SIZE, PET_SIZE)
+    };
+    let origin = point(
+        area.origin.x + area.size.width - px(w) - px(SCREEN_MARGIN),
+        area.origin.y + area.size.height - px(h) - px(SCREEN_MARGIN),
+    );
+    win32::set_window_bounds(window, origin, size(px(w), px(h)));
+}
+
+/// 显示（必要时创建）右下角小精灵。
 pub(crate) fn show_mini(
     window: &mut Window,
     cx: &mut App,
@@ -70,18 +105,19 @@ pub(crate) fn show_mini(
 ) {
     tray::ensure_started();
 
-    // 高度随条数（最多三行）变化，复用已有窗口时也要跟着收紧
     let count = {
         let ws = workspace.read(cx);
         mini_items(&ws.data, ws.today).len()
     };
-    let width = px(MINI_WIDTH);
-    let height = px(mini_height(count));
+    // 每次从小精灵开始，避免上次展开状态带进小窗口
+    state.expanded.set(false);
+    let width = px(PET_SIZE);
+    let height = px(PET_SIZE);
 
     if let Some(handle) = state.handle.borrow().clone() {
         if handle
-            .update(cx, |_, window, _| {
-                window.resize(size(width, height));
+            .update(cx, |_, window, cx| {
+                place(window, cx, false, count);
                 win32::show_window(window);
             })
             .is_ok()
@@ -100,8 +136,8 @@ pub(crate) fn show_mini(
                 size: size(px(1280.), px(720.)),
             });
         let origin = point(
-            bounds.origin.x + bounds.size.width - width - px(16.),
-            bounds.origin.y + bounds.size.height - height - px(16.),
+            bounds.origin.x + bounds.size.width - width - px(SCREEN_MARGIN),
+            bounds.origin.y + bounds.size.height - height - px(SCREEN_MARGIN),
         );
         (origin, size(width, height))
     };
@@ -119,6 +155,7 @@ pub(crate) fn show_mini(
         kind: WindowKind::PopUp,
         is_resizable: false,
         is_minimizable: false,
+        is_movable: false,
         focus: false,
         show: true,
         ..Default::default()
@@ -130,6 +167,8 @@ pub(crate) fn show_mini(
         if let Some(hwnd) = win32::current_hwnd(window) {
             tray::set_mini_hwnd(hwnd as isize);
         }
+        // 贴右下角并置顶，保证小精灵浮在桌面之上
+        win32::set_window_bounds(window, origin, window_size);
         let view = cx.new(|cx| MiniView::new(workspace_for_view.clone(), state_for_view.clone(), cx));
         cx.new(|cx| base::Root::new(view, window, cx))
     });
@@ -139,21 +178,48 @@ pub(crate) fn show_mini(
     }
 }
 
-/// 右下角小窗视图。
+/// 右下角小精灵视图：悬浮展开、移开收起。
 struct MiniView {
     workspace: Entity<Workspace>,
     state: Rc<MiniWindowState>,
     _observe: Subscription,
+    _poll: Task<()>,
 }
 
 impl MiniView {
     fn new(workspace: Entity<Workspace>, state: Rc<MiniWindowState>, cx: &mut Context<Self>) -> Self {
         let _observe = cx.observe(&workspace, |_, _, cx| cx.notify());
+        // 用系统光标轮询驱动展开/收起：无焦点的弹出窗 hover 事件并不可靠
+        let _poll = cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(90))
+                    .await;
+                if this
+                    .update_in(cx, |this, window, cx| this.sync_hover(window, cx))
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        });
         Self {
             workspace,
             state,
             _observe,
+            _poll,
         }
+    }
+
+    /// 光标进入小精灵就展开，离开卡片就收起。
+    fn sync_hover(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let inside = win32::cursor_inside(window);
+        if inside == self.state.expanded.get() {
+            return;
+        }
+        self.state.expanded.set(inside);
+        place(window, cx, inside, self.state.count.get());
+        window.refresh();
     }
 }
 
@@ -165,25 +231,117 @@ impl Render for MiniView {
         };
         let today = self.workspace.read(cx).today;
         let count = items.len();
+        self.state.count.set(count);
+        let overdue = items.iter().any(|t| bucket(t, today) == Bucket::Overdue);
+        let expanded = self.state.expanded.get();
+        let state = self.state.clone();
 
         div()
-            .flex()
-            .flex_col()
             .size_full()
-            // 画布用最深的 bg，条目用 paper 卡片，形成明显色差
-            .bg(rgb(p.bg))
-            .rounded(px(12.))
-            .border_1()
-            .border_color(rgb(p.line))
-            .overflow_hidden()
-            .child(header(count, &p, &self.state, cx))
-            .child(if items.is_empty() {
-                empty(&p).into_any_element()
+            .child(if expanded {
+                expanded_card(count, items, today, &p, &state, &self.workspace, cx).into_any_element()
             } else {
-                list(items, today, &p, &self.workspace, cx).into_any_element()
+                pet(count, overdue, &p).into_any_element()
             })
-            .child(footer(&p, cx))
     }
+}
+
+/// 收起态：一枚小精灵（圆角方块 + 眼睛 + 微笑），右上角显示待办数量。
+fn pet(count: usize, overdue: bool, p: &Palette) -> impl IntoElement {
+    div()
+        .flex()
+        .size_full()
+        .bg(rgb(p.bg))
+        .rounded(px(14.))
+        .border_1()
+        .border_color(rgb(p.line))
+        .child(
+            div()
+                .relative()
+                .flex()
+                .items_center()
+                .justify_center()
+                .size_full()
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .items_center()
+                        .justify_center()
+                        .gap(px(3.))
+                        .w(px(38.))
+                        .h(px(38.))
+                        .rounded(px(13.))
+                        .bg(rgb(p.teal))
+                        .child(
+                            div()
+                                .flex()
+                                .gap(px(8.))
+                                .child(eye(p))
+                                .child(eye(p)),
+                        )
+                        .child(
+                            div()
+                                .w(px(9.))
+                                .h(px(2.5))
+                                .rounded(px(2.))
+                                .bg(rgb(p.bg)),
+                        ),
+                )
+                .when(count > 0, |el| {
+                    el.child(
+                        div()
+                            .absolute()
+                            .top(px(5.))
+                            .right(px(5.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .min_w(px(17.))
+                            .h(px(17.))
+                            .px(px(4.))
+                            .rounded(px(999.))
+                            .bg(if overdue { rgb(p.red) } else { rgb(p.ink) })
+                            .text_size(px(9.5))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(rgb(p.bg))
+                            .child(SharedString::from(badge_label(count))),
+                    )
+                }),
+        )
+}
+
+fn eye(p: &Palette) -> Div {
+    div().w(px(5.)).h(px(5.)).rounded_full().bg(rgb(p.bg))
+}
+
+/// 展开态：待办卡片，最多三行。
+fn expanded_card(
+    count: usize,
+    items: Vec<Todo>,
+    today: chrono::NaiveDate,
+    p: &Palette,
+    state: &Rc<MiniWindowState>,
+    workspace: &Entity<Workspace>,
+    cx: &mut Context<MiniView>,
+) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .size_full()
+        // 画布用最深的 bg，条目用 paper 卡片，形成明显色差
+        .bg(rgb(p.bg))
+        .rounded(px(12.))
+        .border_1()
+        .border_color(rgb(p.line))
+        .overflow_hidden()
+        .child(header(count, p, state, cx))
+        .child(if items.is_empty() {
+            empty(p).into_any_element()
+        } else {
+            list(items, today, p, workspace, cx).into_any_element()
+        })
+        .child(footer(p, cx))
 }
 
 fn header(
@@ -225,12 +383,7 @@ fn header(
                 .child("今日待办"),
         )
         .child(super::pill(format!("{count} 件"), p.teal_ink, p.teal_soft))
-        .child(
-            div()
-                .flex_1()
-                .h(px(18.))
-                .window_control_area(WindowControlArea::Drag),
-        )
+        .child(div().flex_1())
         .child(
             div()
                 .id("mini-close")
@@ -368,7 +521,7 @@ fn footer(p: &Palette, cx: &mut Context<MiniView>) -> impl IntoElement {
 
 #[cfg(test)]
 mod tests {
-    use super::{mini_height, mini_items, MINI_VISIBLE_ROWS};
+    use super::{badge_label, mini_height, mini_items, MINI_VISIBLE_ROWS};
     use chrono::NaiveDate;
     use office_desk_core::domain::types::{DataSnapshot, Todo, TodoStatus};
 
@@ -425,5 +578,13 @@ mod tests {
         assert_eq!(three, mini_height(20));
         // 三行高度应该保持克制，不遮挡桌面
         assert!(three <= 200.0, "mini window too tall: {three}");
+    }
+
+    #[test]
+    fn badge_label_caps_at_two_digits() {
+        assert_eq!(badge_label(0), "0");
+        assert_eq!(badge_label(7), "7");
+        assert_eq!(badge_label(99), "99");
+        assert_eq!(badge_label(100), "99+");
     }
 }
