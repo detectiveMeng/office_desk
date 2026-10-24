@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>办公工作台 · 技术方案（Rust / GPUI / SQLite）</title>
+<title>NiuMa-Workstation · 技术方案（Rust / GPUI / SQLite）</title>
 <style>
 :root{
   --bg:#f6f8f9;--paper:#fff;--ink:#152420;--ink-2:#4a5c58;--ink-3:#7c8b87;
@@ -110,7 +110,7 @@ pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
 <aside class="side">
   <div class="brand">
     <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 4v5"/></svg></div>
-    <div><div class="brand-name">办公工作台</div><div class="brand-sub">Tech Spec · Rust</div></div>
+    <div><div class="brand-name">NiuMa-Workstation</div><div class="brand-sub">Tech Spec · Rust</div></div>
   </div>
 
   <div class="side-group">
@@ -148,7 +148,7 @@ pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
 <header class="hero">
   <div class="hero-inner">
     <span class="eyebrow"><span class="d"></span>Tech Spec · v0.2</span>
-    <h1>办公工作台<br><em>原生桌面实现方案</em></h1>
+    <h1>NiuMa-Workstation<br><em>原生桌面实现方案</em></h1>
     <p class="lead">把产品设计说明落成可施工的原生桌面应用：Rust 编写、GPUI 渲染、SQLite 存储、主题配色可配置。领域口径（逾期 / 顺延 / 周复盘）与 v0.1 完全一致，仅替换运行形态与数据层。</p>
     <div class="hero-meta">
       <span class="meta-chip">语言 <b>Rust</b></span>
@@ -169,7 +169,7 @@ pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
     <table>
       <thead><tr><th style="width:132px">维度</th><th style="width:170px">选择</th><th>理由与代价</th></tr></thead>
       <tbody>
-        <tr><td>运行形态</td><td>原生桌面应用（<code>office_desk.exe</code>）</td><td>从「双击单文件 HTML」升级为「编译产物」。不再是 file:// 网页，无浏览器兼容负担</td></tr>
+        <tr><td>运行形态</td><td>原生桌面应用（<code>NiuMa-Workstation.exe</code>）</td><td>从「双击单文件 HTML」升级为「编译产物」。不再是 file:// 网页，无浏览器兼容负担</td></tr>
         <tr><td>语言</td><td>Rust（stable，edition 2024，MSRV 1.92）</td><td>类型安全 + 内存安全 + 单测一等公民；领域层纯函数天然可 <code>cargo test</code></td></tr>
         <tr><td>UI 框架</td><td><span class="b b-amber">GPUI（锁版本）</span></td><td>Zed 编辑器同款。像素级渲染 + 高质量文字排版，最贴合设计稿。组件层用现成的 <code>gpui-component</code>（60+ 组件，见右侧声明）</td></tr>
         <tr><td>存储</td><td>SQLite（<code>rusqlite</code> + <code>bundled</code>）</td><td>真关系、事务原子写、外键、无容量上限；<code>bundled</code> 把 SQLite 编译进二进制，避免 Windows 上散落 DLL</td></tr>
@@ -214,7 +214,7 @@ pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
  <span class="at">        settings::{theme}  配置层（TOML，颜色 token）</span></code></pre>
 
   <h3>crate 结构（单二进制 crate）</h3>
-  <pre><code>office_desk/
+  <pre><code>NiuMa-Workstation/
 ├── Cargo.toml
 ├── config/
 │   └── default.toml              <span class="c">// 默认主题（浅色，取自设计令牌）</span>
@@ -262,7 +262,7 @@ pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
   <div class="sec-head"><span class="sec-num">03</span><h2>数据层（SQLite）</h2><span class="tag">STORAGE</span></div>
 
   <h3>连接与运行参数</h3>
-  <p>单连接、<code>Mutex</code> 保护（个人单窗口应用无需连接池），启动时执行 <code>PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;</code>。数据库文件与配置同目录：<code>%APPDATA%\office_desk\</code>。</p>
+  <p>单连接、<code>Mutex</code> 保护（个人单窗口应用无需连接池），启动时执行 <code>PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;</code>。数据库文件与配置同目录：<code>%APPDATA%\NiuMa-Workstation\</code>。</p>
 
   <h3>表结构（DDL）</h3>
   <pre><code><span class="c">-- 1) 任务：status ∈ todo|done；priority ∈ 0..3（映射 P0..P3）</span>
@@ -343,7 +343,7 @@ pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
   <div class="grid-2">
     <div class="card">
       <h4>导出</h4>
-      <p class="mini" style="margin:0">生成 <code>office_desk_backup_YYYY-MM-DD.json</code>，结构 <code>{ app, version, exported_at, data }</code>，<code>data</code> 即四张表 + 流水的规范化 JSON；写到用户选择的位置（原生文件对话框，无网络）。</p>
+      <p class="mini" style="margin:0">生成 <code>NiuMa-Workstation-YYYY-MM-DD.json</code>，结构 <code>{ app, version, exported_at, data }</code>，<code>data</code> 即四张表 + 流水的规范化 JSON；写到用户选择的位置（原生文件对话框，无网络）。</p>
     </div>
     <div class="card">
       <h4>导入</h4>
@@ -565,7 +565,7 @@ gpui::<span class="at">Application</span>::new().run(<span class="n">move |</spa
   <p>依据产品决定，<b>只开放主题 / 配色</b>。优先级命名（四档）、周起始日（周一）、快捷键保持默认，不做配置项。</p>
 
   <h3>配置载体</h3>
-  <pre><code><span class="c"># %APPDATA%\office_desk\config.toml（首次运行自动生成，含全部注释与默认值）</span>
+  <pre><code><span class="c"># %APPDATA%\NiuMa-Workstation\config.toml（首次运行自动生成，含全部注释与默认值）</span>
 [theme]
 mode = <span class="s">"light"</span>            <span class="c"># light | dark | custom</span>
 
@@ -624,7 +624,7 @@ p0 = <span class="s">"#C0392B"</span>; p1 = <span class="s">"#E08E3C"</span>; p2
   <h3>工具链前置</h3>
   <ul>
     <li>最新 stable Rust（GPUI 跟随较新的 toolchain）；Windows 需 <b>MSVC Build Tools</b>（<code>bundled</code> 走 cc 编译 SQLite）。</li>
-    <li><code>cargo build --release</code> → <code>target/release/office_desk.exe</code>；<code>cargo test</code> 跑领域 + 存储用例。</li>
+    <li><code>cargo build --release</code> → <code>target/release/NiuMa-Workstation.exe</code>；<code>cargo test</code> 跑领域 + 存储用例。</li>
   </ul>
 
   <h3>施工顺序（增量可运行）</h3>
@@ -655,7 +655,7 @@ p0 = <span class="s">"#C0392B"</span>; p1 = <span class="s">"#E08E3C"</span>; p2
   <div class="grid-2">
     <div class="card">
       <h4>主交付</h4>
-      <p class="mini" style="margin:0"><code>office_desk.exe</code>（release 构建）<br>数据库 <code>%APPDATA%\office_desk\office_desk.db</code><br>配置 <code>%APPDATA%\office_desk\config.toml</code></p>
+      <p class="mini" style="margin:0"><code>NiuMa-Workstation.exe</code>（release 构建）<br>数据库 <code>%APPDATA%\NiuMa-Workstation\NiuMa-Workstation.db</code><br>配置 <code>%APPDATA%\NiuMa-Workstation\config.toml</code></p>
     </div>
     <div class="card">
       <h4>可选</h4>
@@ -686,7 +686,7 @@ p0 = <span class="s">"#C0392B"</span>; p1 = <span class="s">"#E08E3C"</span>; p2
   </div>
 
   <div class="foot">
-    <span>办公工作台 · 技术方案 v0.2（Rust / GPUI / SQLite）</span>
+    <span>NiuMa-Workstation · 技术方案 v0.2（Rust / GPUI / SQLite）</span>
     <span>依据产品设计说明 v0.1 · 确认后进入施工</span>
   </div>
 </section>

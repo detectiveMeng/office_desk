@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use chrono::{NaiveDate, NaiveDateTime};
-use office_desk_core::domain::types::*;
+use niu_ma_workstation_core::domain::types::*;
 use rusqlite::{params, Connection};
 
 use super::schema;

@@ -8,8 +8,8 @@
 //! - 1 条无日期、1 条上周完成
 
 use chrono::{Duration, NaiveDate, NaiveDateTime};
-use office_desk_core::domain::date::start_of_week;
-use office_desk_core::domain::types::*;
+use niu_ma_workstation_core::domain::date::start_of_week;
+use niu_ma_workstation_core::domain::types::*;
 
 /// 生成种子快照。
 pub fn seed(anchor: NaiveDate, now: NaiveDateTime) -> DataSnapshot {
@@ -255,9 +255,9 @@ fn push_future(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use office_desk_core::domain::project::{progress, sync_status};
-    use office_desk_core::domain::stats;
-    use office_desk_core::domain::todo::{bucket, Bucket};
+    use niu_ma_workstation_core::domain::project::{progress, sync_status};
+    use niu_ma_workstation_core::domain::stats;
+    use niu_ma_workstation_core::domain::todo::{bucket, Bucket};
 
     fn day(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).expect("合法日期")

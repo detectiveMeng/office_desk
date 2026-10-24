@@ -3,8 +3,8 @@
 use gpui_kit::component::input::Input;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use office_desk_core::domain::project::{progress, sort_projects, sync_status};
-use office_desk_core::domain::types::{Project, ProjectStatus, TodoStatus};
+use niu_ma_workstation_core::domain::project::{progress, sort_projects, sync_status};
+use niu_ma_workstation_core::domain::types::{Project, ProjectStatus, TodoStatus};
 
 use super::{bar, card, ghost_button, hint, pill, primary_button};
 use crate::state::{Workspace, PROJECT_FILTERS};
@@ -143,7 +143,7 @@ impl Workspace {
             "暂无关联待办".to_string()
         };
 
-        let linked: Vec<&office_desk_core::domain::types::Todo> = self
+        let linked: Vec<&niu_ma_workstation_core::domain::types::Todo> = self
             .data
             .todos
             .iter()

@@ -8,15 +8,27 @@ pub mod schema;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use office_desk_core::domain::types::DataSnapshot;
+use niu_ma_workstation_core::domain::types::DataSnapshot;
 use rusqlite::Connection;
 
 /// 绿色版标记文件：与 exe 同目录存在时，数据写到 exe 旁的 `data` 目录。
 pub const PORTABLE_FLAG: &str = "portable.flag";
 
+/// 对外应用名：同时作为安装版数据目录名与数据库 / 备份文件名前缀。
+pub const APP_NAME: &str = "NiuMa-Workstation";
+/// 数据库文件名。
+pub const DB_FILE: &str = "NiuMa-Workstation.db";
+/// 备份文件名前缀，后接时间戳。
+const BACKUP_PREFIX: &str = "NiuMa-Workstation-";
+
+/// 旧版数据目录名 / 数据库 / 备份前缀，仅用于首次启动迁移。
+const LEGACY_DIR: &str = "office_desk";
+const LEGACY_DB_FILE: &str = "office_desk.db";
+const LEGACY_BACKUP_PREFIX: &str = "office_desk-";
+
 /// 解析数据目录：
 /// - exe 同目录有 `portable.flag` → `<exe 目录>\data`（绿色版，数据跟程序走）
-/// - 否则 → `%APPDATA%\office_desk`
+/// - 否则 → `%APPDATA%\NiuMa-Workstation`
 pub fn data_dir() -> PathBuf {
     let exe_dir = std::env::current_exe()
         .ok()
@@ -32,14 +44,82 @@ fn resolve_data_dir(exe_dir: Option<&Path>, appdata: Option<&str>) -> PathBuf {
         }
     }
     match appdata {
-        Some(appdata) => Path::new(appdata).join("office_desk"),
+        Some(appdata) => Path::new(appdata).join(APP_NAME),
         None => PathBuf::from("."),
     }
 }
 
-/// 数据库文件：数据目录下的 `office_desk.db`
+/// 数据库文件：数据目录下的 `NiuMa-Workstation.db`
 pub fn db_path() -> PathBuf {
-    data_dir().join("office_desk.db")
+    data_dir().join(DB_FILE)
+}
+
+/// 首次启动时把旧版数据迁到新目录（仅安装版；绿色版数据本就在 exe 旁，无需迁移）。
+/// 目标数据库已存在时不覆盖，返回是否实际执行了迁移。
+pub fn migrate_legacy_data() -> Result<bool> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(Path::to_path_buf));
+    if let Some(dir) = exe_dir.as_deref() {
+        if dir.join(PORTABLE_FLAG).is_file() {
+            return Ok(false);
+        }
+    }
+    let Some(appdata) = std::env::var("APPDATA").ok() else {
+        return Ok(false);
+    };
+    migrate_legacy_data_from(&Path::new(&appdata).join(LEGACY_DIR), &data_dir())
+}
+
+fn migrate_legacy_data_from(legacy: &Path, target: &Path) -> Result<bool> {
+    let legacy_db = legacy.join(LEGACY_DB_FILE);
+    if !legacy.is_dir() || target.join(DB_FILE).exists() {
+        return Ok(false);
+    }
+    std::fs::create_dir_all(target)
+        .with_context(|| format!("创建数据目录失败: {}", target.display()))?;
+
+    // 用 VACUUM INTO 拷贝，兼容旧库残留的 WAL 文件
+    if legacy_db.is_file() {
+        let conn = Connection::open(&legacy_db)
+            .with_context(|| format!("打开旧数据库失败: {}", legacy_db.display()))?;
+        backup::backup_to(&conn, target.join(DB_FILE))?;
+    }
+
+    let legacy_config = legacy.join("config.toml");
+    let target_config = target.join("config.toml");
+    if legacy_config.is_file() && !target_config.exists() {
+        std::fs::copy(&legacy_config, &target_config).with_context(|| {
+            format!(
+                "迁移配置失败: {} -> {}",
+                legacy_config.display(),
+                target_config.display()
+            )
+        })?;
+    }
+
+    // 旧备份改名为新前缀，保证后续按新前缀统一裁剪
+    let legacy_backups = legacy.join("backups");
+    if legacy_backups.is_dir() {
+        let target_backups = target.join("backups");
+        std::fs::create_dir_all(&target_backups)
+            .with_context(|| format!("创建备份目录失败: {}", target_backups.display()))?;
+        for entry in std::fs::read_dir(&legacy_backups)?.flatten() {
+            let path = entry.path();
+            let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            let Some(stamp) = name.strip_prefix(LEGACY_BACKUP_PREFIX) else {
+                continue;
+            };
+            let dest = target_backups.join(format!("{BACKUP_PREFIX}{stamp}"));
+            if path.is_file() && !dest.exists() {
+                std::fs::copy(&path, &dest)
+                    .with_context(|| format!("迁移备份失败: {}", path.display()))?;
+            }
+        }
+    }
+    Ok(true)
 }
 
 /// 单个 SQLite 连接 + 内存镜像的落库封装。
@@ -121,7 +201,7 @@ impl Storage {
             .context("当前存储没有磁盘路径，无法备份")?;
         std::fs::create_dir_all(&dir)
             .with_context(|| format!("创建备份目录失败: {}", dir.display()))?;
-        let target = dir.join(format!("office_desk-{stamp}.db"));
+        let target = dir.join(format!("{BACKUP_PREFIX}{stamp}.db"));
         self.backup_to(&target)?;
         prune_backups(&dir, 30)?;
         Ok(target)
@@ -133,7 +213,7 @@ impl Storage {
             Some(dir) => dir,
             None => return Ok(None),
         };
-        if some_dir.join(format!("office_desk-{day}.db")).is_file() {
+        if some_dir.join(format!("{BACKUP_PREFIX}{day}.db")).is_file() {
             return Ok(None);
         }
         Ok(Some(self.backup_now(day)?))
@@ -144,7 +224,7 @@ impl Storage {
     }
 }
 
-/// 只保留最近 `keep` 份 `office_desk-*.db` 备份（文件名时间戳可字典序排序）。
+/// 只保留最近 `keep` 份 `NiuMa-Workstation-*.db` 备份（文件名时间戳可字典序排序）。
 fn prune_backups(dir: &Path, keep: usize) -> Result<()> {
     let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
         .with_context(|| format!("读取备份目录失败: {}", dir.display()))?
@@ -154,7 +234,7 @@ fn prune_backups(dir: &Path, keep: usize) -> Result<()> {
                 && path
                     .file_name()
                     .and_then(|name| name.to_str())
-                    .map(|name| name.starts_with("office_desk-"))
+                    .map(|name| name.starts_with(BACKUP_PREFIX))
                     .unwrap_or(false)
         })
         .collect();
@@ -174,7 +254,7 @@ fn prune_backups(dir: &Path, keep: usize) -> Result<()> {
 mod tests {
     use super::*;
     use chrono::NaiveDate;
-    use office_desk_core::domain::types::*;
+    use niu_ma_workstation_core::domain::types::*;
 
     fn dt(y: i32, m: u32, d: u32) -> chrono::NaiveDateTime {
         NaiveDate::from_ymd_opt(y, m, d)
@@ -285,7 +365,7 @@ mod tests {
     #[test]
     fn portable_flag_switches_data_dir() {
         let dir = std::env::temp_dir().join(format!(
-            "office_desk_portable_{}_{}",
+            "niu_ma_workstation_portable_{}_{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -297,7 +377,7 @@ mod tests {
         // 没有标记文件：走 APPDATA
         assert_eq!(
             resolve_data_dir(Some(&dir), Some("C:\\appdata")),
-            Path::new("C:\\appdata").join("office_desk")
+            Path::new("C:\\appdata").join(APP_NAME)
         );
 
         // 放了标记文件：数据落在 exe 同级的 data 目录
@@ -312,7 +392,7 @@ mod tests {
 
     fn temp_dir(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "office_desk_{tag}_{}_{}",
+            "niu_ma_workstation_{tag}_{}_{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -326,14 +406,20 @@ mod tests {
     #[test]
     fn backup_keeps_latest_thirty() {
         let dir = temp_dir("backup");
-        let st = Storage::open(dir.join("office_desk.db")).unwrap();
+        let st = Storage::open(dir.join(DB_FILE)).unwrap();
         for index in 0..33 {
             st.backup_now(&format!("20260101-{index:06}")).unwrap();
         }
         let backups = std::fs::read_dir(dir.join("backups")).unwrap().count();
         assert_eq!(backups, 30);
-        assert!(!dir.join("backups").join("office_desk-20260101-000000.db").exists());
-        assert!(dir.join("backups").join("office_desk-20260101-000032.db").exists());
+        assert!(!dir
+            .join("backups")
+            .join("NiuMa-Workstation-20260101-000000.db")
+            .exists());
+        assert!(dir
+            .join("backups")
+            .join("NiuMa-Workstation-20260101-000032.db")
+            .exists());
         drop(st);
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -341,10 +427,50 @@ mod tests {
     #[test]
     fn daily_backup_runs_once_per_day() {
         let dir = temp_dir("daily");
-        let st = Storage::open(dir.join("office_desk.db")).unwrap();
+        let st = Storage::open(dir.join(DB_FILE)).unwrap();
         assert!(st.auto_backup_daily("20261022").unwrap().is_some());
         assert!(st.auto_backup_daily("20261022").unwrap().is_none());
         drop(st);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn migrates_legacy_data_dir_once() {
+        let root = temp_dir("migrate");
+        let legacy = root.join(LEGACY_DIR);
+        let target = root.join(APP_NAME);
+        std::fs::create_dir_all(&legacy).unwrap();
+
+        let mut st = Storage::open(legacy.join(LEGACY_DB_FILE)).unwrap();
+        let original = sample();
+        st.save(&original).unwrap();
+        drop(st);
+
+        // 模拟旧版备份文件名
+        std::fs::create_dir_all(legacy.join("backups")).unwrap();
+        std::fs::copy(
+            legacy.join(LEGACY_DB_FILE),
+            legacy.join("backups").join("office_desk-20260101-000000.db"),
+        )
+        .unwrap();
+        std::fs::write(legacy.join("config.toml"), "theme = \"dark\"\n").unwrap();
+
+        assert!(migrate_legacy_data_from(&legacy, &target).unwrap());
+
+        let migrated = Storage::open(target.join(DB_FILE)).unwrap().load().unwrap();
+        assert_eq!(migrated, original);
+        assert_eq!(
+            std::fs::read_to_string(target.join("config.toml")).unwrap(),
+            "theme = \"dark\"\n"
+        );
+        assert!(target
+            .join("backups")
+            .join("NiuMa-Workstation-20260101-000000.db")
+            .is_file());
+
+        // 目标库已存在时不再重复迁移，避免覆盖新数据
+        assert!(!migrate_legacy_data_from(&legacy, &target).unwrap());
+
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }

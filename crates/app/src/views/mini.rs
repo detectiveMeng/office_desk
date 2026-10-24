@@ -6,8 +6,8 @@ use std::time::{Duration, Instant};
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use office_desk_core::domain::todo::{bucket, overdue_days, sort_for_today, Bucket};
-use office_desk_core::domain::types::{DataSnapshot, Todo, TodoStatus};
+use niu_ma_workstation_core::domain::todo::{bucket, overdue_days, sort_for_today, Bucket};
+use niu_ma_workstation_core::domain::types::{DataSnapshot, Todo, TodoStatus};
 
 use super::tint;
 use crate::state::Workspace;
@@ -645,7 +645,7 @@ fn footer(p: &Palette, cx: &mut Context<MiniView>) -> impl IntoElement {
 mod tests {
     use super::{badge_label, mini_height, mini_items, MINI_VISIBLE_ROWS};
     use chrono::NaiveDate;
-    use office_desk_core::domain::types::{DataSnapshot, Todo, TodoStatus};
+    use niu_ma_workstation_core::domain::types::{DataSnapshot, Todo, TodoStatus};
 
     fn day(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()

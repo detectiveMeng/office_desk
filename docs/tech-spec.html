@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>个人办公工作台 · 技术方案</title>
+<title>NiuMa-Workstation · 技术方案</title>
 <style>
 :root{
   --bg:#f6f8f9;
@@ -190,7 +190,7 @@ pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 4v5"/></svg>
     </div>
     <div>
-      <div class="brand-name">个人办公工作台</div>
+      <div class="brand-name">NiuMa-Workstation</div>
       <div class="brand-sub">Tech Spec</div>
     </div>
   </div>
@@ -262,7 +262,7 @@ pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
 
   <div class="hero-inner">
     <span class="eyebrow"><span class="d"></span>Tech Spec · 施工版</span>
-    <h1>个人办公工作台<br><em>单文件零依赖的实现方案</em></h1>
+    <h1>NiuMa-Workstation<br><em>单文件零依赖的实现方案</em></h1>
     <p class="lead">把产品设计说明落成可施工的技术文档：分层架构、纯函数领域逻辑、单一刷新入口、SVG 图表算法、边界用例与验收清单。所有统计口径附可复算的真实数值。</p>
     <div class="hero-meta">
       <span class="meta-chip">技术栈 <b>原生 HTML/CSS/ES5</b></span>
@@ -279,7 +279,7 @@ pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
   <div class="sec-head"><span class="sec-num">01</span><h2>技术选型与约束</h2><span class="tag">STACK</span></div>
 
   <h3>选型结论</h3>
-  <p>不做框架选型，本身就是结论：<strong>原生 HTML + 内联 CSS + 内联 ES5 脚本，零依赖、零构建、零请求</strong>。个人办公工作台的交互复杂度（4 个模块、约 30 个动作、两处统计图表）远未到需要引入虚拟 DOM 的程度；而引入任何构建或依赖，都会破坏「单文件下载即用、离线可用」这一硬需求。</p>
+  <p>不做框架选型，本身就是结论：<strong>原生 HTML + 内联 CSS + 内联 ES5 脚本，零依赖、零构建、零请求</strong>。NiuMa-Workstation 的交互复杂度（4 个模块、约 30 个动作、两处统计图表）远未到需要引入虚拟 DOM 的程度；而引入任何构建或依赖，都会破坏「单文件下载即用、离线可用」这一硬需求。</p>
 
   <div class="tbl-wrap">
     <table>
@@ -462,7 +462,7 @@ pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
   <div class="grid-2">
     <div class="card">
       <h4>导出</h4>
-      <p class="mini" style="margin:0 0 6px">生成文件名 <code>办公工作台备份_2026-10-18.json</code>，内容为 <code>{ app, version, exportedAt, data }</code>。用 <code>Blob + a[download]</code> 触发，不请求网络。</p>
+      <p class="mini" style="margin:0 0 6px">生成文件名 <code>NiuMa-Workstation-备份_2026-10-18.json</code>，内容为 <code>{ app, version, exportedAt, data }</code>。用 <code>Blob + a[download]</code> 触发，不请求网络。</p>
       <p class="mini" style="margin:0"><b>注意：</b><code>file://</code> 下部分浏览器会拦截 Blob 下载，需同时提供「复制到剪贴板」的降级按钮。</p>
     </div>
     <div class="card">
@@ -1046,7 +1046,7 @@ cases.forEach(([name, fn]) =&gt; console.log((fn() ? <span class="s">'PASS'</spa
   <div class="grid-2">
     <div class="card">
       <h4>主交付</h4>
-      <p class="mini" style="margin:0"><code>office_desk/workbench.html</code><br>单文件，双击即用；含示例数据；零外部请求。</p>
+      <p class="mini" style="margin:0"><code>NiuMa-Workstation/workbench.html</code><br>单文件，双击即用；含示例数据；零外部请求。</p>
     </div>
     <div class="card">
       <h4>可选</h4>
@@ -1081,7 +1081,7 @@ cases.forEach(([name, fn]) =&gt; console.log((fn() ? <span class="s">'PASS'</spa
   </div>
 
   <div class="foot">
-    <span>个人办公工作台 · 技术方案 v0.1</span>
+    <span>NiuMa-Workstation · 技术方案 v0.1</span>
     <span>依据产品设计说明 v0.1 · 确认后即可进入施工</span>
   </div>
 </section>

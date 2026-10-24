@@ -1,9 +1,9 @@
 [package]
-name = "office_desk_core"
+name = "niu_ma_workstation_core"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.92"
-description = "办公工作台 —— 领域层（纯函数与纯数据结构，零 GPUI / SQLite 依赖）"
+description = "NiuMa-Workstation —— 领域层（纯函数与纯数据结构，零 GPUI / SQLite 依赖）"
 
 [dependencies]
 # 日期：NaiveDate / NaiveDateTime / Datelike / Duration（serde 用于 JSON 导出/导入）

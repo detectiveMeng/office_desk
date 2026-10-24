@@ -3841,6 +3841,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
+name = "niu_ma_workstation"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "embed-resource",
+ "gpui-kit",
+ "niu_ma_workstation_core",
+ "raw-window-handle",
+ "rfd",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "toml 0.8.23",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "niu_ma_workstation_core"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+]
+
+[[package]]
 name = "no_std_io2"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4374,32 +4400,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff76201f031d8863c38aa7f905eca4f53abbfa15f609db4277d44cd8938f33fe"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "office_desk"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "embed-resource",
- "gpui-kit",
- "office_desk_core",
- "raw-window-handle",
- "rfd",
- "rusqlite",
- "serde",
- "serde_json",
- "toml 0.8.23",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "office_desk_core"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
 ]
 
 [[package]]

@@ -4,7 +4,7 @@ use chrono::{Duration, NaiveDate};
 use gpui_kit::component::input::Input;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use office_desk_core::domain::stats;
+use niu_ma_workstation_core::domain::stats;
 
 use super::{
     bar, card, ghost_button, hint, pill, priority_colors, priority_label, weekday_cn,

@@ -3,7 +3,7 @@
 use gpui_kit::component::input::Input;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use office_desk_core::domain::types::Note;
+use niu_ma_workstation_core::domain::types::Note;
 
 use super::{card, ghost_button, hint, pill, primary_button};
 use crate::state::Workspace;

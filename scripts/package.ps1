@@ -1,6 +1,6 @@
 # 一键出两个发布物：
-#   dist\OfficeDesk-<ver>-setup.exe      安装版（Inno Setup）
-#   dist\OfficeDesk-<ver>-portable.zip   绿色版（解压即用，数据存 exe 旁的 data\）
+#   dist\NiuMa-Workstation-<ver>-setup.exe      安装版（Inno Setup）
+#   dist\NiuMa-Workstation-<ver>-portable.zip   绿色版（解压即用，数据存 exe 旁的 data\）
 param(
     [switch]$SkipBuild
 )
@@ -14,18 +14,18 @@ if (-not $match) { throw "读不到 crates\app\Cargo.toml 里的版本号" }
 $version = $match.Matches[0].Groups[1].Value
 
 $dist = Join-Path $root "dist"
-$portableDir = Join-Path $dist "OfficeDesk-$version-portable"
-$portableZip = Join-Path $dist "OfficeDesk-$version-portable.zip"
-$setupExe = Join-Path $dist "OfficeDesk-$version-setup.exe"
+$portableDir = Join-Path $dist "NiuMa-Workstation-$version-portable"
+$portableZip = Join-Path $dist "NiuMa-Workstation-$version-portable.zip"
+$setupExe = Join-Path $dist "NiuMa-Workstation-$version-setup.exe"
 
 if (-not $SkipBuild) {
     # 静态链接 CRT：发布物不依赖 VC++ 运行库，干净机器可直接运行
     $env:RUSTFLAGS = "-C target-feature=+crt-static"
-    cargo build -p office_desk --release
+    cargo build -p niu_ma_workstation --release
     if ($LASTEXITCODE -ne 0) { throw "cargo build --release 失败" }
 }
 
-$exe = "target\release\office_desk.exe"
+$exe = "target\release\NiuMa-Workstation.exe"
 if (-not (Test-Path $exe)) { throw "缺少 $exe，请先去掉 -SkipBuild" }
 
 New-Item -ItemType Directory -Path $dist -Force | Out-Null
@@ -46,11 +46,11 @@ $iscc = @(
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if ($iscc) {
-    & $iscc "/DAppVersion=$version" "packaging\office_desk.iss"
+    & $iscc "/DAppVersion=$version" "packaging\NiuMa-Workstation.iss"
     if ($LASTEXITCODE -ne 0) { throw "ISCC 打包安装版失败" }
 } else {
     Write-Warning "未找到 Inno Setup（ISCC.exe），已跳过安装版，仅生成绿色版"
 }
 
-Get-ChildItem $dist -Filter "OfficeDesk-$version-*" |
+Get-ChildItem $dist -Filter "NiuMa-Workstation-$version-*" |
     Select-Object Name, @{ n = "MB"; e = { [math]::Round($_.Length / 1MB, 1) } }

@@ -1,4 +1,4 @@
-# 办公工作台 · Office Desk
+# NiuMa-Workstation
 
 本地优先的个人办公桌面应用：**今日待办 / 灵感速记 / 项目跟进 / 每周复盘** 四个模块 + 一个跨模块置顶区「今天要处理的」。
 
@@ -29,10 +29,10 @@
 
 ```powershell
 # 开发运行（带控制台，便于看日志）
-cargo run -p office_desk
+cargo run -p niu_ma_workstation
 
 # 全部测试（领域层 + 应用层）
-cargo test -p office_desk_core -p office_desk
+cargo test -p niu_ma_workstation_core -p niu_ma_workstation
 
 # 一次产出安装版 + 绿色版（release 构建，需 Inno Setup 6）
 pwsh -File scripts\package.ps1
@@ -42,8 +42,8 @@ pwsh -File scripts\package.ps1
 
 产物在 `dist\`：
 
-- `OfficeDesk-<版本>-setup.exe`：安装版（当前用户安装、开始菜单、可选桌面图标、卸载器）
-- `OfficeDesk-<版本>-portable.zip`：绿色版（解压即用，数据随程序走）
+- `NiuMa-Workstation-<版本>-setup.exe`：安装版（当前用户安装、开始菜单、可选桌面图标、卸载器）
+- `NiuMa-Workstation-<版本>-portable.zip`：绿色版（解压即用，数据随程序走）
 
 首次构建需编译 GPUI 全量依赖，耗时较长；之后增量构建通常几十秒。
 
@@ -51,19 +51,21 @@ pwsh -File scripts\package.ps1
 
 | 形态 | 数据目录 |
 | --- | --- |
-| 安装版 / `cargo run` | `%APPDATA%\office_desk\` |
+| 安装版 / `cargo run` | `%APPDATA%\NiuMa-Workstation\` |
 | 绿色版 | `exe 所在目录\data\`（exe 旁存在 `portable.flag` 时启用） |
 
-目录内包含 `office_desk.db`（SQLite）、`config.toml`（主题配置）与 `backups\`（自动备份，保留最近 30 份）。没有数据库主机 / 端口 / 账号之类的连接配置，只是一个本地文件。
+目录内包含 `NiuMa-Workstation.db`（SQLite）、`config.toml`（主题配置）与 `backups\`（自动备份，保留最近 30 份）。没有数据库主机 / 端口 / 账号之类的连接配置，只是一个本地文件。
+
+首次启动会自动把旧版 `%APPDATA%\office_desk\` 下的数据库、配置与备份迁移到新目录，迁移完成后旧目录保留不删。
 
 ## 项目结构
 
 ```
-office_desk/
+NiuMa-Workstation/
 ├─ crates/
-│  ├─ core/                    # office_desk_core：纯领域层，只依赖 chrono，可秒级跑测试
+│  ├─ core/                    # niu_ma_workstation_core：纯领域层，只依赖 chrono，可秒级跑测试
 │  │  └─ src/domain/           #   types / todo / project / stats / date
-│  └─ app/                     # 二进制 office_desk：GPUI 渲染 + SQLite 存储
+│  └─ app/                     # 二进制 NiuMa-Workstation：GPUI 渲染 + SQLite 存储
 │     ├─ src/main.rs           #   启动：配置 → DB → 种子 → 顺延 → 窗口
 │     ├─ src/state.rs          #   Workspace 状态机与全部动作
 │     ├─ src/views/            #   today / notes / projects / review 四页
@@ -72,7 +74,7 @@ office_desk/
 │     ├─ src/config.rs         #   config.toml 读写
 │     └─ src/seed.rs           #   演示数据 + 回归断言
 ├─ docs/                       # 产品设计、技术方案、项目代码说明
-├─ packaging/office_desk.iss   # 安装版脚本
+├─ packaging/NiuMa-Workstation.iss   # 安装版脚本
 └─ scripts/package.ps1         # 一键打包安装版 + 绿色版
 ```
 
@@ -90,8 +92,8 @@ office_desk/
 
 ## 测试
 
-- `cargo test -p office_desk_core`：11 个领域测试（分区、排序、项目排序、顺延、进度、状态联动、周统计、周边界）
-- `cargo test -p office_desk`：16 个应用测试（存储往返、v1→v2 迁移、备份保留 30 份、每日备份去重、种子回归、清理快照、JSON 往返、绿色版数据目录切换等）
+- `cargo test -p niu_ma_workstation_core`：11 个领域测试（分区、排序、项目排序、顺延、进度、状态联动、周统计、周边界）
+- `cargo test -p niu_ma_workstation`：21 个应用测试（存储往返、v1→v2 迁移、备份保留 30 份、每日备份去重、旧数据目录迁移、种子回归、清理快照、JSON 往返、绿色版数据目录切换等）
 
 改动领域逻辑时必须保持种子基线数字不变。
 

@@ -1,10 +1,10 @@
-# 办公工作台 · 项目代码说明
+# NiuMa-Workstation · 项目代码说明
 
 > 版本 0.1.0 · 仅 Windows · 桌面端（Rust + GPUI + SQLite）
 
 ## 1. 这是什么东西
 
-「办公工作台」是一个本地优先的个人办公桌面应用，包含四个模块和一个跨模块的置顶区：
+「NiuMa-Workstation」是一个本地优先的个人办公桌面应用，包含四个模块和一个跨模块的置顶区：
 
 | 模块 | 解决的问题 |
 | --- | --- |
@@ -30,17 +30,17 @@
 ## 3. 目录结构
 
 ```
-office_desk/
+NiuMa-Workstation/
 ├─ Cargo.toml                     # workspace：core + app
 ├─ crates/
-│  ├─ core/                       # office_desk_core：纯领域层（只依赖 chrono）
+│  ├─ core/                       # niu_ma_workstation_core：纯领域层（只依赖 chrono）
 │  │  └─ src/domain/
 │  │     ├─ types.rs              # Todo / Project / Note / WeeklyReview / DataSnapshot
 │  │     ├─ todo.rs               # 分区、排序、逾期天数、跨天顺延
 │  │     ├─ project.rs            # 进度、状态联动、关联任务
 │  │     ├─ stats.rs              # 周复盘统计
 │  │     └─ date.rs               # 周一为周起点
-│  └─ app/                        # 二进制 office_desk
+│  └─ app/                        # 二进制 NiuMa-Workstation
 │     ├─ src/main.rs              # 启动：配置 → DB → 种子 → 顺延 → 窗口
 │     ├─ src/state.rs             # Workspace 状态、全部动作、根视图/标题栏/侧栏
 │     ├─ src/views/               # 四个页面（today / notes / projects / review）
@@ -51,7 +51,7 @@ office_desk/
 │     ├─ build.rs                 # 把 icon.ico 嵌进 exe
 │     └─ assets/{icon.ico,icon.rc}
 ├─ docs/                          # 设计稿、技术方案、视觉 demo
-├─ packaging/office_desk.iss      # 安装版脚本
+├─ packaging/NiuMa-Workstation.iss      # 安装版脚本
 └─ scripts/package.ps1            # 一键出安装版 + 绿色版
 ```
 
@@ -120,10 +120,12 @@ cx.notify() → Render 重绘
 
 | 形态 | 数据目录 |
 | --- | --- |
-| 安装版 / 开发运行 | `%APPDATA%\office_desk\` |
+| 安装版 / 开发运行 | `%APPDATA%\NiuMa-Workstation\` |
 | 绿色版 | `exe 同目录\data\`（exe 旁有 `portable.flag` 时启用） |
 
-数据目录下是 `office_desk.db` 和 `config.toml`；运行后还会生成 `backups/`（最近的数据库备份）。`portable.flag` 由打包脚本生成，安装版不会带这个文件。
+数据目录下是 `NiuMa-Workstation.db` 和 `config.toml`；运行后还会生成 `backups/`（最近的数据库备份）。`portable.flag` 由打包脚本生成，安装版不会带这个文件。
+
+首次启动时若新数据库不存在，会从旧版 `%APPDATA%\office_desk\` 迁移数据库、配置与备份（旧备份文件名前缀改为 `NiuMa-Workstation-`），迁移后旧目录保留不删。
 
 ### 6.2 表结构
 
@@ -143,7 +145,7 @@ cx.notify() → Render 重绘
 - `Storage::save(&snapshot)`：**单事务整库重写**（先清空再插入）。数据量是个人级别，简单可靠优先。
 - `Storage::integrity_ok()`：打开时做一次完整性检查。
 - `Storage::backup_to(path)`：用 `VACUUM INTO` 做一致性快照。
-- `Storage::backup_now(stamp)`：备份到 `<数据目录>/backups/office_desk-<stamp>.db`，自动只保留最近 30 份。
+- `Storage::backup_now(stamp)`：备份到 `<数据目录>/backups/NiuMa-Workstation-<stamp>.db`，自动只保留最近 30 份。
 - `Storage::auto_backup_daily(day)`：每天首次启动自动备份一次，当天已有备份则跳过。
 - 内存存储 `open_memory()` 供单元测试使用。
 
@@ -151,13 +153,14 @@ cx.notify() → Render 重绘
 
 ### 7.1 启动流程（main.rs）
 
-1. 读取 `config.toml`（缺省浅色主题）。
-2. 打开 SQLite，必要时建表。
-3. 读 `DataSnapshot`，执行每日自动备份（`backups/` 下保留最近 30 份）。
-4. 若是空库且从未种过（`seeded_at` 为空），灌入演示数据并标记。
-5. 执行跨天自动顺延，并记录 `last_run_date`。
-6. 打开 1120×600 的 GPUI 窗口（自绘标题栏，系统标题栏隐藏）。
-7. 挂载 `Workspace` 作为根视图。
+1. 首次启动时把旧版 `%APPDATA%\office_desk\` 数据迁移到新目录（失败不阻断启动）。
+2. 读取 `config.toml`（缺省浅色主题）。
+3. 打开 SQLite，必要时建表。
+4. 读 `DataSnapshot`，执行每日自动备份（`backups/` 下保留最近 30 份）。
+5. 若是空库且从未种过（`seeded_at` 为空），灌入演示数据并标记。
+6. 执行跨天自动顺延，并记录 `last_run_date`。
+7. 打开 1120×600 的 GPUI 窗口（自绘标题栏，系统标题栏隐藏）。
+8. 挂载 `Workspace` 作为根视图。
 
 ### 7.2 Workspace（state.rs）
 
@@ -214,7 +217,7 @@ ID 生成用「微秒时间戳 + 进程内自增计数」，前缀区分 `t`（�
 
 标题栏是**应用自绘**的 34px 条：
 
-- 左侧 232px 与侧栏同色，显示「办公工作台 / Workbench」。
+- 左侧 232px 与侧栏同色，显示「NiuMa-Workstation / 工作台」。
 - 中段显示当前页面名，切换页面时同步更新。
 - 右侧三个窗口控件（最小化 / 最大化-还原 / 关闭），用内联 SVG 绘制。
 - 拖拽、双击最大化、最小化、关闭交给 Windows 原生处理（`window_control_area`），不自己模拟。
@@ -241,10 +244,10 @@ ID 生成用「微秒时间戳 + 进程内自增计数」，前缀区分 `t`（�
 
 ```powershell
 # 开发运行（带控制台，便于看日志）
-cargo run -p office_desk
+cargo run -p niu_ma_workstation
 
 # 测试：领域层 + 应用层
-cargo test -p office_desk_core -p office_desk
+cargo test -p niu_ma_workstation_core -p niu_ma_workstation
 
 # 一次产出安装版 + 绿色版（release 构建）
 powershell -ExecutionPolicy Bypass -File scripts\package.ps1
@@ -258,13 +261,13 @@ powershell -ExecutionPolicy Bypass -File scripts\package.ps1
 
 产物在 `dist\`：
 
-- `OfficeDesk-<版本>-setup.exe`
-- `OfficeDesk-<版本>-portable.zip`
+- `NiuMa-Workstation-<版本>-setup.exe`
+- `NiuMa-Workstation-<版本>-portable.zip`
 
 ## 9. 测试与回归基线
 
-- `cargo test -p office_desk_core`：11 个领域测试（分区、排序、项目排序、顺延、进度、状态联动、周统计、周边界）。
-- `cargo test -p office_desk`：15 个应用测试（存储往返、迁移、备份保留 30 份、每日备份去重、种子回归、清理快照、新项目默认值、已完成区间筛选、项目关联循环、JSON 往返）。
+- `cargo test -p niu_ma_workstation_core`：11 个领域测试（分区、排序、项目排序、顺延、进度、状态联动、周统计、周边界）。
+- `cargo test -p niu_ma_workstation`：21 个应用测试（存储往返、v1→v2 迁移、备份保留 30 份、每日备份去重、旧数据目录迁移、种子回归、清理快照、新项目默认值、已完成区间筛选、项目关联循环、JSON 往返）。
 - 种子数据的断言值就是产品口径：本周完成 11 / 完成率 84.6% / 逾期 2 / 卡住 1 / 顺延 4，改动领域逻辑时必须保持这些数字。
 
 ## 10. 约定与已知限制

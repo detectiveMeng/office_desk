@@ -4,8 +4,8 @@ use chrono::{Duration, NaiveDate};
 use gpui_kit::component::input::Input;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use office_desk_core::domain::todo::{bucket, group_future, overdue_days, sort_for_today, Bucket};
-use office_desk_core::domain::types::{Project, Todo, TodoStatus};
+use niu_ma_workstation_core::domain::todo::{bucket, group_future, overdue_days, sort_for_today, Bucket};
+use niu_ma_workstation_core::domain::types::{Project, Todo, TodoStatus};
 
 use super::{card, ghost_button, hint, pill, primary_button, priority_pill, tint, weekday_cn};
 use crate::state::{DoneRange, Workspace, DONE_RANGES};
@@ -54,8 +54,8 @@ impl Workspace {
             .data
             .projects
             .iter()
-            .filter(|proj| office_desk_core::domain::project::sync_status(proj)
-                == office_desk_core::domain::types::ProjectStatus::Blocked)
+            .filter(|proj| niu_ma_workstation_core::domain::project::sync_status(proj)
+                == niu_ma_workstation_core::domain::types::ProjectStatus::Blocked)
             .cloned()
             .collect();
 

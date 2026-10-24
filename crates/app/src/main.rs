@@ -1,4 +1,4 @@
-//! 办公工作台入口：读取配置 → 打开 SQLite → 首次种子 → 跨天自动顺延 → 主窗口。
+//! NiuMa-Workstation 入口：旧数据迁移 → 读取配置 → 打开 SQLite → 首次种子 → 跨天自动顺延 → 主窗口。
 
 // 发布版不弹控制台窗口（调试版保留，便于看日志）
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
@@ -16,12 +16,15 @@ use std::rc::Rc;
 
 use chrono::Local;
 use gpui_kit::*;
-use office_desk_core::domain::todo::run_auto_rollover;
+use niu_ma_workstation_core::domain::todo::run_auto_rollover;
 
 use state::Workspace;
 use storage::Storage;
 
 fn main() -> anyhow::Result<()> {
+    // 首次启动把旧版数据迁到新目录；迁移失败不阻断启动
+    let _ = storage::migrate_legacy_data();
+
     let config = config::Config::load();
 
     let mut storage = Storage::open_default()?;
@@ -50,7 +53,7 @@ fn main() -> anyhow::Result<()> {
 
         let options = WindowOptions {
             titlebar: Some(TitlebarOptions {
-                title: Some("办公工作台".into()),
+                title: Some("NiuMa-Workstation".into()),
                 // 去掉系统标题栏，改由应用自绘（见 Workspace::render_titlebar），
                 // 让窗口顶部与内容区成为同一块连续表面。
                 appears_transparent: true,

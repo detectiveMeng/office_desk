@@ -11,10 +11,10 @@ use gpui_kit::component::input::{Input, InputEvent, InputState, TextareaState};
 use gpui_kit::component::{Icon, Sizable as _, Theme};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use office_desk_core::domain::date::start_of_week;
-use office_desk_core::domain::project::sync_status;
-use office_desk_core::domain::todo::{bucket, Bucket};
-use office_desk_core::domain::types::*;
+use niu_ma_workstation_core::domain::date::start_of_week;
+use niu_ma_workstation_core::domain::project::sync_status;
+use niu_ma_workstation_core::domain::todo::{bucket, Bucket};
+use niu_ma_workstation_core::domain::types::*;
 
 use crate::config::Config;
 use crate::storage::Storage;
@@ -1064,7 +1064,7 @@ impl Workspace {
     pub(crate) fn export_data(&mut self, cx: &mut Context<Self>) {
         let stamp = self.now().format("%Y%m%d-%H%M%S").to_string();
         let Some(path) = rfd::FileDialog::new()
-            .set_file_name(format!("office_desk-{stamp}.json"))
+            .set_file_name(format!("{}-{stamp}.json", crate::storage::APP_NAME))
             .add_filter("JSON", &["json"])
             .save_file()
         else {
@@ -1409,13 +1409,13 @@ impl Workspace {
                         div()
                             .text_size(px(13.))
                             .font_weight(FontWeight::SEMIBOLD)
-                            .child("办公工作台"),
+                            .child("NiuMa-Workstation"),
                     )
                     .child(
                         div()
                             .text_size(px(10.))
                             .text_color(rgb(palette.ink3))
-                            .child("Workbench"),
+                            .child("工作台"),
                     ),
             )
             .child(
@@ -1723,7 +1723,7 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
-    use office_desk_core::domain::types::{DataSnapshot, ProjectStatus};
+    use niu_ma_workstation_core::domain::types::{DataSnapshot, ProjectStatus};
 
     use super::{cleared_snapshot, new_project, next_project, DoneRange};
 

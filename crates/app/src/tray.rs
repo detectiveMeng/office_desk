@@ -66,7 +66,7 @@ pub(crate) fn hide_mini() {
 unsafe fn run_tray() {
     unsafe {
         let hinstance = GetModuleHandleW(std::ptr::null());
-        let class_name = windows_sys::w!("OfficeDeskTrayWindow");
+        let class_name = windows_sys::w!("NiuMaWorkstationTrayWindow");
 
         let wc = WNDCLASSW {
             lpfnWndProc: Some(wnd_proc),
@@ -80,7 +80,7 @@ unsafe fn run_tray() {
         let hwnd = CreateWindowExW(
             0,
             class_name,
-            windows_sys::w!("OfficeDeskTray"),
+            windows_sys::w!("NiuMa-Workstation Tray"),
             WS_OVERLAPPED,
             0,
             0,
@@ -112,7 +112,7 @@ unsafe fn run_tray() {
         data.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
         data.uCallbackMessage = WM_TRAY;
         data.hIcon = icon;
-        let tip: Vec<u16> = "办公工作台 · 今日待办".encode_utf16().take(127).collect();
+        let tip: Vec<u16> = "NiuMa-Workstation · 今日待办".encode_utf16().take(127).collect();
         data.szTip[..tip.len()].copy_from_slice(&tip);
         Shell_NotifyIconW(NIM_ADD, &data);
 

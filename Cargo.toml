@@ -1,6 +1,6 @@
-# 办公工作台 —— Cargo workspace 根
+# NiuMa-Workstation —— Cargo workspace 根
 # 分层：core（领域层，纯函数，仅 chrono）→ app（GPUI 渲染 + SQLite 存储）
-# 这样 `cargo test -p office_desk_core` 无需编译整个 GPUI/SQLite 依赖栈。
+# 这样 `cargo test -p niu_ma_workstation_core` 无需编译整个 GPUI/SQLite 依赖栈。
 
 [workspace]
 resolver = "3"

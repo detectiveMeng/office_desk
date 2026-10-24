@@ -1,18 +1,18 @@
 [package]
-name = "office_desk"
+name = "niu_ma_workstation"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.92"
-description = "办公工作台 —— 原生办公桌面应用（Rust + GPUI + SQLite）"
-default-run = "office_desk"
+description = "NiuMa-Workstation —— 原生办公桌面应用（Rust + GPUI + SQLite）"
+default-run = "NiuMa-Workstation"
 
 [[bin]]
-name = "office_desk"
+name = "NiuMa-Workstation"
 path = "src/main.rs"
 
 [dependencies]
 # 领域层
-office_desk_core = { path = "../core" }
+niu_ma_workstation_core = { path = "../core" }
 
 # UI：GPUI Kit —— 单一依赖，重导出 GPUI（gpui_kit::*）+ 组件库（gpui_kit::component）+ 图标资源
 gpui-kit = "0.7.3"
